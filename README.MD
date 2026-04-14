@@ -1,3 +1,5 @@
+# Kafka 101
+
 ## Apache Kafka: Use cases
 
 - Messaging System
@@ -107,10 +109,6 @@ An event has a key, value, timestamp, and optional metadata headers.
         - For Kafka => Kafka workflows: use the Transactional API (easy with Kafka Streams API)
         - For Kafka => External System workflows: use an idempotent consumer
 
-## Zookeeper and KRaft
-
-- Apache ZooKeeper is like a smart, always-awake babysitter for a team of computers — it keeps track of who’s there, who’s the boss, and all the important shared information so the computers can work together without getting confused or fighting.
-
 # Kafka Brokers
 
 - A Kafka cluster is composed of multiple brokers (servers)
@@ -124,3 +122,135 @@ An event has a key, value, timestamp, and optional metadata headers.
 - Every Kafka broker is also called a "bootstrap server"
 - That means that you only need to connect to one broker, and the Kafka clients will know how to be connected to the entire cluster (smart clients)
 - Each broker knows about all brokers, topics and partitions (metadata)
+
+## Topic replication factor
+
+- Topics should have a replication factor > 1 (usually between 2 and 3)
+- This way if a broker is down, another broker can serve the data
+
+Example: Topic-A with 2 partitions and replication factor of 2:
+
+| Broker 101         | Broker 102         | Broker 103         |
+| ------------------ | ------------------ | ------------------ |
+| Topic-A partition0 |                    | Topic-A partition0 |
+|                    | Topic-A partition1 | Topic-A partition1 |
+
+## Concept of Leader for a Partition
+
+- At any time only ONE broker can be a leader for a given partition
+- **Producers can only send data to the broker that is leader of a partition**
+- Since Kafka 2.4, it is possible to configure consumers to read from the closest instead on the leader
+- The other brokers will replicate the data
+- Therefore, each partition has one leader and multiple ISR (in-sync replica)
+
+| Broker 101                  | Broker 102              | Broker 103                 |
+| --------------------------- | ----------------------- | -------------------------- |
+| Topic-A partition0 (Leader) |                         | Topic-A partition0 (ISR)   |
+|                             | Topic-A partition1(ISR) | Topic-A partition1(Leader) |
+
+## Producer Acknowledgements (acks)
+
+- Producers can choose to receive acknowledgment of data writes:
+    - acks=0: Producer won't wait for acknowledgment (possible data loss)
+    - acks=1: Producer will wait for leader acknowledgment (limited data loss)
+    - acks=a11: Leader + replicas acknowledgment (no data loss)
+
+## Kafka Topic Durability
+
+- For a topic replication factor of 3, topic data durability can withstand 2 brokers loss.
+- As a rule, for a replication factor of N, you can permanently lose up to N-1 brokers and still recover your data.
+
+# Zookeeper
+
+- Zookeeper manages brokers (keeps a list of them)
+- Zookeeper helps in performing leader election for partitions
+- Zookeeper sends notifications to Kafka in case of changes (e.g. new topic, broker dies, broker comes up, delete topics, etc....)
+- Kafka 2.x can't work without Zookeeper
+- Kafka 3.x can work without Zookeeper (KIP-500) - using Kafka Raft instead
+- Kafka 4.x does not have Zookeeper
+- Zookeeper by design operates with an odd number of servers (1, 3, 5, 7)
+- Zookeeper has a leader (writes) the rest of the servers are followers (reads)
+- (Zookeeper does NOT store consumer offsets with Kafka > v0.10)
+
+# About Kafka KRaft
+
+- In 2020, the Apache Kafka project started to work to remove the Zookeeper dependency from it (KIP-500)
+- Zookeeper shows scaling issues when Kafka clusters have > 100,000 partitions
+- By removing Zookeeper, Apache Kafka can
+    - Scale to millions of partitions, and becomes easier to maintain and set-up
+    - Improve stability, makes it easier to monitor, support and administer
+    - Single security model for the whole system
+    - Single process to start with Kafka
+    - Faster controller shutdown and recovery time
+
+# Installation (Single Node)
+
+**NOTE: We will cover single node installation for development environment. Later, we will cover production ready cluster.**
+
+## MacOs
+
+```sh
+brew install kafka
+```
+
+You can run kafka in the background using:
+
+```sh
+brew start kafka
+```
+
+Or manually run it:
+
+```sh
+/opt/homebrew/bin/kafka-server-start /opt/homebrew/etc/kafka/server.properties
+```
+
+## Linux (Ubuntu/Debian)
+
+**NOTE: In this setup, we are working with openjdk version 21 and Kafka version 4.2.0 build 2.13-4.2.0. You should update commands based on your downloaded versions.**
+
+1. Install openjdk
+
+    ```sh
+    sudo apt-get update
+    sudo apt-get install -y openjdk-21-jdk # you can set jdk version as you wish
+    ```
+
+1. Download Kafka binary file from [kafka official website](https://kafka.apache.org/community/downloads/)
+
+    ```sh
+    wget https://www.apache.org/dyn/closer.lua/kafka/4.2.0/kafka_2.13-4.2.0.tgz?action=download
+    ```
+
+1. Extract the file and go to the extracted directory.
+
+```sh
+tar -xvf kafka_2.13-4.2.0.tgz
+cd kafka_2.13-4.2.0
+```
+
+1. Setting Log directory:
+    - Create log directory: `mkdir /home/kafka/kraft-combined-logs`
+    - Open server properties file and set `log.dirs` to `/home/kafka/kraft-combined-logs`.
+
+1. Generate ID and format storage
+
+```sh
+./bin/kafka-storage.sh format --standalone -t `./bin/kafka-storage.sh random-uuid` -c ./config/server.properties
+```
+
+1. Start server:
+
+```sh
+./bin/kafka-server-start.sh config/server.properties
+```
+
+**NOTE: KEEP THIS TERMINAL OPEN. Otherwise, Kafka server will be stopped.**
+
+1. Config installation:
+
+```sh
+./bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic testing
+```
+
+You should see `Created topic testing.` message.
