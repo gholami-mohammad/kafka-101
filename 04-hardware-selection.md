@@ -1,0 +1,12 @@
+- Disk Throughput
+    - The performance of producer clients will be most directly influenced by the throughput of the broker disk that is used for storing log segments. => So choose SSD storage instead of HDD.
+- Disk Capacity
+    - Capacity is the other side of the storage discussion. The amount of disk capacity that is needed is determined by how many messages need to be retained at any time.
+- Memory
+    - If Kafka heap requires 5GB of memory, the rest of the system memory will be used by the page cache and will benefit Kafka by allowing the system to cache log segments in use
+    - it is not recommended to have Kafka collocated on a system with any other significant application, as they will have to share the use of the page cache.
+- Networking
+    - The available network throughput will specify the maximum amount of traffic that Kafka can handle
+- CPU
+    - Processing power is not as important as disk and memory
+    - Message compression, decompression, checksum calculation and assigning offset requires CPU computation. This should not be the primary factor in selecting hardware, however.
