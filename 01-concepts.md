@@ -162,7 +162,7 @@ Example: Topic-A with 2 partitions and replication factor of 2:
 - Producers can choose to receive acknowledgment of data writes:
     - acks=0: Producer won't wait for acknowledgment (possible data loss)
     - acks=1: Producer will wait for leader acknowledgment (limited data loss)
-    - acks=a11: Leader + replicas acknowledgment (no data loss)
+    - acks=all: Leader + replicas acknowledgment (no data loss)
 
 ## Kafka Topic Durability
 
