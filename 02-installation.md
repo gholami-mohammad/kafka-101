@@ -39,33 +39,45 @@ Or manually run it:
 
 1. Extract the file and go to the extracted directory.
 
-```sh
-tar -xvf kafka_2.13-4.2.0.tgz
-cd kafka_2.13-4.2.0
-```
+    ```sh
+    mkdir ~/kafka
+    tar -xvf kafka_2.13-4.2.0.tgz
+    mv kafka_2.13-4.2.0 ~/kafka
+    cd ~/kafka/kafka_2.13-4.2.0
+    ```
 
 1. Setting Log directory:
-    - Create log directory: `mkdir /home/kafka/kraft-combined-logs`
-    - Open server properties file and set `log.dirs` to `/home/kafka/kraft-combined-logs`.
+    - Create log directory: `mkdir ~/kafka/kraft-combined-logs`
+    - Open server properties file and set `log.dirs` to `~/kafka/kraft-combined-logs`.
 
 1. Generate ID and format storage
 
-```sh
-./bin/kafka-storage.sh format --standalone -t `./bin/kafka-storage.sh random-uuid` -c ./config/server.properties
-```
+    ```sh
+    ./bin/kafka-storage.sh format --standalone -t `./bin/kafka-storage.sh random-uuid` -c ./config/server.properties
+    ```
 
 1. Start server:
 
-```sh
-./bin/kafka-server-start.sh config/server.properties
-```
+    ```sh
+    ./bin/kafka-server-start.sh config/server.properties
+    ```
 
-**NOTE: KEEP THIS TERMINAL OPEN. Otherwise, Kafka server will be stopped.**
+    **NOTE: KEEP THIS TERMINAL OPEN. Otherwise, Kafka server will be stopped.**
 
 1. Config installation:
 
-```sh
-./bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic testing
-```
+    ```sh
+    ./bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic testing
+    ```
 
-You should see `Created topic testing.` message.
+    You should see `Created topic testing.` message.
+
+1. Adding kafka bin to PATH:
+    - if using bash:
+        ```
+        echo 'export PATH="$PATH:~/kafka/kafka_2.13-4.2.0/bin"' >> ~/.bashrc
+        ```
+    - if using zsh:
+        ```
+        echo 'export PATH="$PATH:~/kafka/kafka_2.13-4.2.0/bin"' >> ~/.zshrc
+        ```
