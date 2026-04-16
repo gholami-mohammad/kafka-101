@@ -1,3 +1,5 @@
+# Hardware selection
+
 - Disk Throughput
     - The performance of producer clients will be most directly influenced by the throughput of the broker disk that is used for storing log segments. => So choose SSD storage instead of HDD.
 - Disk Capacity
