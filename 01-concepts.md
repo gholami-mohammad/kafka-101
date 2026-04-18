@@ -91,6 +91,7 @@ An event has a key, value, timestamp, and optional metadata headers.
 - Order is guaranteed only within a partition (not across partitions).
 - Data is assigned randomly to a partition unless a key is provided.
 - You can have as many partitions per topic as you want.
+- Kafka topics are logs not queue because you can read its data as many time as you want. But in queue, when you read some data, it will be gone then.
 
 ## Partition
 
@@ -136,6 +137,7 @@ An event has a key, value, timestamp, and optional metadata headers.
 
 - Topics should have a replication factor > 1 (usually between 2 and 3)
 - This way if a broker is down, another broker can serve the data
+- When we have replication factor greater than 1, one broker will be Leader and other replicas are called follower.
 
 Example: Topic-A with 2 partitions and replication factor of 2:
 
@@ -148,8 +150,8 @@ Example: Topic-A with 2 partitions and replication factor of 2:
 
 - At any time only ONE broker can be a leader for a given partition
 - **Producers can only send data to the broker that is leader of a partition**
-- Since Kafka 2.4, it is possible to configure consumers to read from the closest instead on the leader
-- The other brokers will replicate the data
+- Since Kafka 2.4, it is possible to configure consumers to read from the closest instead of the leader
+- The other brokers(followers) will replicate the data
 - Therefore, each partition has one leader and multiple ISR (in-sync replica)
 
 | Broker 101                  | Broker 102              | Broker 103                 |
