@@ -6,6 +6,9 @@
 - [Hardware Selection](./04-hardware-selection.md)
 - [Kafka Topics CLI](./05-cli-kafka-topics.md)
 - [Kafka Console Producer CLI](./06-cli-kafka-console-producer.md)
+- [Performance Benchmarking](./50-tuning.md)
+- [Reassigning partition](./51-reassign-partiotion.md)
+- [Mirror Maker](./52-mirror-maker.md)
 
 TODO:
 

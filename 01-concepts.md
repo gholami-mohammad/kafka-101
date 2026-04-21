@@ -22,6 +22,16 @@
 
 # Main Concepts and Terminology
 
+## Broker
+
+The data worker. It is responsible for receiving, storing, and serving the actual messages (data) to producers and consumers.
+
+## Controller
+
+The cluster manager. It manages the cluster's metadata—keeping track of topics, partitions, and broker health—and uses the Raft consensus protocol to ensure this configuration is synchronized and highly available across the cluster.
+
+A Kafka server can be configured to run as a broker, a controller, or both simultaneously (combined mode).
+
 ## Event
 
 An event records the fact that “something happened” in the world or in your business.
@@ -95,6 +105,7 @@ An event has a key, value, timestamp, and optional metadata headers.
 
 ## Partition
 
+- Partitions are the units of distribution.
 - Topics are partitioned , meaning a topic is spread over a number of “buckets” located on different Kafka brokers
 - This distributed placement of your data is very important for scalability because it allows client applications to both read and write the data from/to many brokers at the same time.
 - Events with the same event key (e.g., a customer or vehicle ID) are written to the same partition, and Kafka guarantees that any consumer of a given topic-partition will always read that partition’s events in exactly the same order as they were written.
@@ -193,3 +204,35 @@ Example: Topic-A with 2 partitions and replication factor of 2:
     - Single security model for the whole system
     - Single process to start with Kafka
     - Faster controller shutdown and recovery time
+
+# How Kafka Data Plane Works
+
+![Data Plane](./kafka-data-plane.png)
+
+# Topic Compaction
+
+In Apache Kafka, **topic compaction** (specifically known as Log Compaction) is a data retention mechanism that ensures Kafka retains at least the last known value for each message key within the log.
+
+Here are its core features:
+
+- **Key-Based Retention:** Instead of deleting messages based on time or total log size, compaction retains the most recent message for every unique key. Older duplicate keys are discarded.
+- **Message Deletion (Tombstones):** To completely remove a key from a compacted topic, you produce a message with that key and a `null` payload (known as a tombstone). The log cleaner will eventually delete all references to that key.
+- **Unchanged Offsets:** Compaction does not change the offset of messages. Instead, it creates gaps in the offset sequence where older duplicate keys were removed. Consumers simply skip over these gaps.
+- **Order Preservation:** The relative order of messages within a partition is always preserved, even after compaction occurs.
+- **Background Processing:** Compaction is handled by a pool of background threads (Log Cleaners) running on the brokers, ensuring it does not block active producer or consumer requests.
+- **Segment Segregation:** Compaction only applies to older, "inactive" log segments. The "active" segment currently receiving new writes is never compacted.
+- **Primary Use Cases:** It is ideal for scenarios where you need to rebuild the latest state, such as caching, restoring database states (Change Data Capture / CDC), and backing state stores in Kafka Streams (e.g., KTables).
+
+# Tiered Storage
+
+In Apache Kafka, **Tiered Storage** (introduced in KIP-405) is an architecture that separates data storage into two tiers (local and remote), allowing Kafka clusters to scale storage capacity independently from compute resources (brokers).
+
+Here are its core features:
+
+- **Two-Tier Architecture:** Data is divided into a "local" tier (fast, local broker disks) and a "remote" tier (cheaper, scalable object storage like AWS S3, Google Cloud Storage, or Azure Blob Storage).
+- **Local Tier (Hot Data):** Retains only the most recently published data. It is highly optimized for low-latency reads and writes, serving real-time consumers.
+- **Remote Tier (Cold Data):** Older log segments are asynchronously offloaded to remote object storage. This enables cost-effective, long-term (or even infinite) data retention.
+- **Transparent Consumption:** Consumers do not need to know where the data resides. If a consumer requests older data that has been offloaded, the Kafka broker automatically fetches it from the remote tier and serves it to the consumer seamlessly.
+- **Independent Scaling:** You can increase your storage capacity simply by adding object storage, without needing to add more Kafka brokers or local disks.
+- **Faster Broker Recovery and Rebalancing:** Because only the much smaller local tier needs to be replicated between brokers during partition reassignments or broker failures, recovery times and network load are significantly reduced.
+- **Reduced Infrastructure Costs:** Storing massive volumes of historical data on object storage is significantly cheaper than provisioning massive local disks (like SSDs) on every broker.
