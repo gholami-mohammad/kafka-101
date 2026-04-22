@@ -1,0 +1,3 @@
+# Schema Registry
+
+**Kafka Schema Registry** is a centralized service that stores and manages data schemas (such as Avro, Protobuf, and JSON Schema) used for messages published to Apache Kafka. It acts as a shared repository that allows producers and consumers to coordinate and validate the structure of the data they are exchanging without attaching the full schema to every single message, thereby significantly reducing payload size. By enforcing compatibility rules, the Schema Registry enables safe schema evolution over time, ensuring that changes made to a data format by a producer do not break downstream consumers, ultimately providing robust data governance and reliability within event-driven architectures.
