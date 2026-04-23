@@ -108,7 +108,7 @@ kafka-console-producer --bootstrap-server localhost:9092 --topic first-topic --m
 
 ## batch.size
 
-The producer will attempt to batch records together into fewer requests whenever multiple records are being sent to the same partition. This helps performance on both the client and the server. This configuration controls the default batch size in bytes.
+The producer will attempt to batch records together into fewer requests whenever multiple records are being sent to the same partition. This helps performance on both the client and the server. **This configuration controls the default batch size in bytes.**
 
 - A small batch size will make batching less common and may reduce throughput (a batch size of zero will disable batching entirely).
 - A very large batch size may use memory a bit more wastefully as we will always allocate a buffer of the specified batch size.
