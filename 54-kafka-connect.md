@@ -167,3 +167,55 @@ curl -X DELETE http://localhost:8083/connectors/load-app-log
 curl -X DELETE http://localhost:8083/connectors/dump-app-log
 kafka-topics --delete --bootstrap-server localhost:9092 --topic logs
 ```
+
+# Monitoring
+
+**General Monitoring Tools:**
+
+1. **JMX (Java Management Extensions):** Native to Java; you can use tools like JConsole or VisualVM to view raw metrics.
+2. **UI for Apache Kafka (Provectus):** A great open-source web UI that supports monitoring Kafka clusters, including Kafka Connect clusters.
+
+---
+
+### How to integrate with Prometheus and Grafana
+
+Kafka Connect exposes its metrics via JMX. To get these into Prometheus, you must use the **Prometheus JMX Exporter**, which runs as a Java agent alongside your Kafka Connect workers and translates JMX metrics into an HTTP endpoint Prometheus can scrape.
+
+# Dead Letter Queue (DLQ)
+
+### What is the Dead Letter Queue (DLQ) in Kafka Connect?
+
+A Dead Letter Queue (DLQ) in Kafka Connect is a designated Kafka topic where invalid or unprocessable messages are sent instead of causing the connector task to fail and crash. Currently, the DLQ feature is specifically supported for **Sink Connectors** (which read from Kafka and write to external systems).
+
+### Use Cases
+
+1. **Handling "Poison Pills":** If a corrupt, malformed, or improperly serialized message enters the Kafka topic, the connector will fail to process it. Without a DLQ, this single bad message halts the entire pipeline. The DLQ isolates the bad message so the connector can continue processing healthy data.
+2. **Troubleshooting and Auditing:** Engineers can monitor the DLQ topic to investigate why messages failed, fix the upstream data producers, or manually reprocess the corrected data later.
+
+### How to Configure it
+
+To enable the DLQ, you need to change the error tolerance settings and specify the target DLQ topic in your Sink Connector's configuration.
+
+Here are the key properties to add to your connector config:
+
+```json
+{
+	"name": "my-sink-connector",
+	"config": {
+		"...": "...",
+
+		"errors.tolerance": "all",
+		"errors.deadletterqueue.topic.name": "my-connector-dlq",
+		"errors.deadletterqueue.context.headers.enable": "true",
+		"errors.log.enable": "true",
+		"errors.log.include.messages": "true"
+	}
+}
+```
+
+**Configuration Breakdown:**
+
+- **`errors.tolerance: "all"`**: Tells the connector to skip problematic records and continue processing. (The default is `"none"`, which causes the task to fail immediately on an error).
+- **`errors.deadletterqueue.topic.name`**: The name of the Kafka topic where failed records will be routed. (Make sure this topic exists or auto-creation is enabled).
+- **`errors.deadletterqueue.context.headers.enable: "true"`**: Highly recommended. It appends headers to the DLQ message containing the reason for the failure (e.g., exception stack trace, original topic, partition, and offset), making debugging much easier.
+- **`errors.log.enable` & `errors.log.include.messages`**: Optional but helpful for printing the errors and the problematic message content directly to the Kafka Connect worker logs.
