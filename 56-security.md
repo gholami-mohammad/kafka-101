@@ -1,4 +1,169 @@
-# Security
+# امنیت در کافکا - Security
+
+امنیت در کافکا در سه گروه بررسی می شود:
+
+- رمزنگاری - Encryption
+- احراز هویت - Authentication
+- تعیین سطح دسترسی به منابع - Authorization
+
+## رمزنگاری - Encryption
+
+- رمزنگاری در کافکا، این اطمینان را میدهد که داده بین کلاینت و broker به صورت ایمن منتقل میشود و از دید روتر های مسیر و سایر افراد در این شبکه مخفی است.
+  ![ssl encryption](ssl-encryption.png)
+
+در ادامه، ابتدا به ساخت یک Certificate Authority (CA) خواهیم پرداخت.
+
+### راه اندازی CA
+
+**درصورتیکه از یک CA معتبر یا CA در شبکه استفاده میکنید، میتوانید این مرحله را عبور کنید.**
+
+```sh
+mkdir ssl
+cd ssl
+
+openssl req -new -newkey rsa:4096 -days 365 -x509 -subj "/CN=Kafka-Security-CA" -keyout ca-key -out ca-cert -noenc
+```
+
+توضیحات:
+
+سوییچ = flag
+
+- سوییچ `-new`: ایجاد کلید جدید
+- سوییچ `-newkey rsa:4096`: ایجاد کلید RSA با طول ۴۰۹۶ بیت
+- سوییچ `-days 365`: مدت زمان اعتبار ۳۶۵ روز
+- سوییچ `-x509`: جهت امضا کردن گواهینامه (self signed certificate)
+- سوییچ `-subj "/CN=Kafka-Security-CA"`: اضافه کردن اطلاعات شناسایی یه گواهینامه. در این دستور مقدار CN یا همان Common Name به مقدار Kafka-Security-CA تنظیم شده است.
+- سوییچ `-keyout ca-key`: خروجی دادن کلید خصوصی در فایلی به نام ca-key
+- سوییچ `-out ca-cert`: خروجی دادن گواهینامه عمومی در فایلی به نام ca-cert
+- سوییچ `-noenc`: به این معنی است که کلید خصوصی را رمزنگاری نکن. در نسخه های قدیمی تر این سوییچ با -nodes اعمال میشد.
+
+### تنظیمات SSL در کافکا
+
+#### تنظیمات Keystore
+
+مرحله اول: ساخت key pair و keystore
+
+```sh
+export SRVPASS=STRONG_SECRET
+
+cd ssl # ssl directory created in CA setup.
+
+keytool -genkeypair -keystore kafka.server.keystore.jks -keyalg RSA -keysize 2048 -alias kafka-broker -validity 365 -storepass $SRVPASS -keypass $SRVPASS -dname "CN=localhost" -storetype pkcs12
+```
+
+نکته: در سوییچ dname مقدار تنظیم شده برای CN باید نام هاست یا IP مربوط به broker کافکا باشد.
+درصورتیکه این مقدار مانند این مثال، به localhost تنظیم شود، هیچ client بیرون از محیط local قادر به اتصال به این بروکر نخواهد بود.
+
+جهت مشاهده محتوای کلید تولید شده را مشاهده کنیم از دستور زیر استفاده میکنیم:
+
+```sh
+keytool -list -v -keystore kafka.server.keystore.jks
+```
+
+مرحله دوم: ایجاد درخواست گواهینامه یا CSR (Certificate Signing Request)
+
+```sh
+export SRVPASS=STRONG_SECRET
+cd ssl # ssl directory created in CA setup.
+
+## مرحله اول: دریافت فایل درخواست امضای گواهینامه - Sign request
+keytool -keystore kafka.server.keystore.jks -certreq -alias kafka-broker -file cert-file -storepass $SRVPASS -keypass $SRVPASS
+```
+
+نکته: مقدار تنظیم شده برای سوییچ alias باید همانند مقداری باشد که زمان ساخت keystore استفاده شده است.
+
+مرحله سوم: امضای CSR در CA
+
+درصورتیکه از یک CA معتبر یا CA شبکه بخواهیم گواهینامه دریافت کنیم، این فایل را برای آنها ارسال میکنیم و آنها یک گواهینامه برای ما تولید میکنند.
+حال اگر بخواهیم خودمان به صورت self signed این گواهینامه را تولید کنیم، مرحله بعد را نیز انجام میدهیم:
+
+```sh
+export SRVPASS=STRONG_SECRET
+cd ssl # ssl directory created in CA setup.
+
+openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file -out cert-signed -days 365 -CAcreateserial -passin pass:$SRVPASS
+```
+
+جهت مشاهده جزییات گواهینامه از دستور زیر استفاده میشود:
+
+```sh
+keytool -printcert -v -file cert-signed
+```
+
+#### تنظیمات Truststore
+
+مرحله اول: ایجاد کلید برای truststore:
+
+```sh
+keytool -importcert -keystore kafka.server.truststore.jks -alias CARoot -file ca-cert -storepass $SRVPASS -keypass $SRVPASS -noprompt
+```
+
+این دستور به این معناست که ما یک keystrore ایجاد میکنیم که گواهینامه عمومی CA را در آن import میکنیم.
+
+مرحله دوم: در این مرحله میبایست گواهینامه عمومی تولید شده توسط CA را به keystore ایمپورت کنیم.
+
+```sh
+keytool -importcert -keystore kafka.server.keystore.jks -alias CARoot -file ca-cert -storepass $SRVPASS -keypass $SRVPASS -noprompt
+```
+
+مرحله نهایی: در این مرحله نیز باید کلید امضا شده ای که در مرحله سوم تنظیمات keystore تولید کرده ایم را به keystore ایمپورت کنیم.
+
+```sh
+keytool -importcert -keystore kafka.server.keystore.jks -alias kafka-broker -file cert-signed -storepass $SRVPASS -keypass $SRVPASS -noprompt
+```
+
+---
+
+تمامی دستورات این بخش به صورت یکجا:
+
+```sh
+mkdir ssl
+cd ssl
+
+
+# CA
+openssl req -new -newkey rsa:4096 -days 365 -x509 -subj "/CN=Kafka-Security-CA" -keyout ca-key -out ca-cert -noenc
+
+
+# keystore
+export SRVPASS=STRONG_SECRET
+
+keytool -genkeypair -keystore kafka.server.keystore.jks -keyalg RSA -keysize 2048 -alias kafka-broker -validity 365 -storepass $SRVPASS -keypass $SRVPASS -dname "CN=localhost" -storetype pkcs12
+
+keytool -keystore kafka.server.keystore.jks -certreq -alias kafka-broker -file cert-file -storepass $SRVPASS -keypass $SRVPASS
+
+openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file -out cert-signed -days 365 -CAcreateserial -passin pass:$SRVPASS
+
+# Truststore
+keytool -importcert -keystore kafka.server.truststore.jks -alias CARoot -file ca-cert -storepass $SRVPASS -keypass $SRVPASS -noprompt
+
+keytool -importcert -keystore kafka.server.keystore.jks -alias CARoot -file ca-cert -storepass $SRVPASS -keypass $SRVPASS -noprompt
+
+keytool -importcert -keystore kafka.server.keystore.jks -alias kafka-broker -file cert-signed -storepass $SRVPASS -keypass $SRVPASS -noprompt
+```
+
+---
+
+## احراز هویت - Authentication
+
+- احرازهویت در کافکا این اطمینان را میدهد که کلاینت هایی میتوانند با کافکا ارتباط بگیرند که بتوانند ثابت کنند که هویت آنها برای کافکا مورد تایید است. این موضوع مشابه استفاده از نام کاربری و رمز عبور در زمان ورود به یک وب سایت است.
+
+![Auth](./auth.png)
+
+### روش های مختلف احراز هویت
+
+- احراز هویت SSL: کلاینت ها با استفاده از یک گواهینامه SSL در کافکا احرازهویت میشود.
+- احراز هویت SASL(Simple Authentication Security Layer):
+    - روش PLAIN: کلاینت با استفاده از یک نام کاربری و رمز عبور احراز هویت میکند. (ضعیف - تنظیمات آسان)
+    - روش Kerberos: مانند استفاده از Microsoft Active Directory (قوی - تنظیمات دشوار)
+    - روش SCRAM: نام کاربری و رمز عبور (قوی - تنظیمات نسبتا دشوار)
+
+## سطح دسترسی - Authorization
+
+- کنترل میکند که کلاینت احرازهویت شده به چه منابعی مجوز دسترسی دارد.
+- دسترسی ها به کمک ACL (Access Control List) توسط مدیر تنظیم میشود که دسترسی ها را اعمال میکند.
+
+---
 
 Kafka security protocols:
 
