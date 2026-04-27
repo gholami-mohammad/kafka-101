@@ -9,13 +9,64 @@ services:
         hostname: controller-1
         container_name: controller-1
         environment:
+            # Property: node.id
+            # What it is: A unique integer identifier for this specific node within the entire Kafka cluster.
+            # What it does: Every broker and controller in a KRaft cluster must have a completely unique node ID.
+            # This is how the cluster distinguishes one machine/container from another.
             KAFKA_NODE_ID: 1
+
+            # Property: process.roles
+            # What it is: Defines the role(s) this specific node will play in the KRaft cluster.
+            # What it does: It can be set to broker, controller, or broker,controller (combined).
+            # By setting it strictly to controller, you are dedicating this node to manage cluster
+            # metadata and elect leaders, meaning it will not store normal client topics or partition data.
             KAFKA_PROCESS_ROLES: "controller"
+
+            # Property: controller.quorum.voters
+            # What it is: The KRaft equivalent of a Zookeeper connection string.
+            # What it does: It provides a list of all the controller nodes that make up the quorum.
+            # The format is node_id@hostname:port. Every node in the cluster uses this list to know
+            # who the controllers are and where to reach them to sync metadata.
             KAFKA_CONTROLLER_QUORUM_VOTERS: "1@controller-1:29093,2@controller-2:29093"
+
+            # Property: listeners
+            # What it is: Defines the network interfaces and ports the node binds to.
+            # What it does: It tells the container to listen for traffic on the
+            # internal hostname controller-1 at port 29093, and labels this
+            # listening socket with the custom name CONTROLLER.
             KAFKA_LISTENERS: "CONTROLLER://controller-1:29093"
+
+            # Property: controller.listener.names
+            # What it is: Identifies which listener is reserved for KRaft metadata traffic.
+            # What it does: It tells Kafka that any network traffic arriving on the
+            # listener named CONTROLLER is strictly for internal cluster management
+            # between controllers and brokers. Normal client traffic
+            # (like producers/consumers) is not allowed on this listener.
             KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+
+            # Property: listener.security.protocol.map
+            # What it is: A translation dictionary for your custom listener names.
+            # What it does: Kafka only natively understands security protocols like
+            # PLAINTEXT, SSL, or SASL_PLAINTEXT. This maps your custom listener
+            # name (CONTROLLER) to the underlying protocol (PLAINTEXT,
+            # meaning unencrypted traffic).
             KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT"
+
+            # Property: log.dirs
+            # What it is: The file system directory where Kafka writes its data.
+            # What it does: Because this node is solely a controller,
+            # it does not store standard Kafka topics. Instead, it uses this
+            # directory to store the KRaft metadata log (the internal record
+            # of cluster state, topics, partitions, and configs).
             KAFKA_LOG_DIRS: "/tmp/kraft-controller-logs"
+
+            # Property: There is no direct property in server.properties for this.
+            # What it is: A unique, base64-encoded string representing the identity of your Kafka cluster.
+            # What it does: In KRaft mode, every node (broker and controller) must be
+            # formatted with the exact same CLUSTER_ID. If a node starts up with
+            # a different cluster ID, it will refuse to join the quorum.
+            # This variable is used to format cluster storage:
+            # kafka-storage.sh format -t <CLUSTER_ID> -c /path/to/server.properties
             CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
 
     controller-2:
@@ -49,8 +100,31 @@ services:
             KAFKA_PROCESS_ROLES: "broker"
             KAFKA_CONTROLLER_QUORUM_VOTERS: "1@controller-1:29093,2@controller-2:29093"
             KAFKA_LISTENERS: "PLAINTEXT://broker-1:29092,PLAINTEXT_HOST://0.0.0.0:9092"
+
+            # Property: advertised.listeners
+            # What it is: The list of hostnames and ports the broker passes back to clients and other brokers.
+            # What it does: When a client initially connects to Kafka,
+            # it asks for the cluster metadata. The broker replies with
+            # these “advertised” addresses. The client will then disconnect and
+            # reconnect using these addresses to actually read or write data.
+            # In this setup, broker-1:29092 is given to other Docker containers
+            # (internal network), and localhost:9092 is given to clients running on host machine.
             KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://broker-1:29092,PLAINTEXT_HOST://localhost:9092"
+
+            # Property: inter.broker.listener.name
+            # What it is: The name of the listener dedicated to communication between brokers.
+            # What it does: It tells the broker to use the listener named PLAINTEXT
+            # (which mapped to broker-1:29092) for internal cluster operations,
+            #  such as replicating partition data from a leader broker to a follower broker.
             KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+
+            # What it is: Identifies the name of the listener used by the KRaft controllers.
+            # What it does: Even on a dedicated broker node (which doesn’t host
+            # a controller listener itself), the broker needs this
+            # configuration so it knows how to interpret the addresses provided
+            # in KAFKA_CONTROLLER_QUORUM_VOTERS and correctly route its
+            # metadata requests to the controllers.
+            # Equivalent Property: controller.listener.names
             KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
             KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
             KAFKA_LOG_DIRS: "/tmp/kraft-broker-logs"
