@@ -11,3 +11,5 @@
 - [Mirror Maker](./52-mirror-maker.md)
 - [Schema Registry](./53-schema_registry.md)
 - [Kafka Connect](./54-kafka-connect.md)
+    - [Kafka Connect Example](./55-kafka-connect-example.md)
+- [Kafka Security](./56-security.md)
