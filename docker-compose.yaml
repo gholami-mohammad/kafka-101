@@ -13,51 +13,51 @@ services:
             - CLIENT_PASS=xLPrcS2pLLeN8WJmr1EVmEFCc
         command: >
             bash -c '
-              cd /etc/kafka/secrets
+                cd /etc/kafka/secrets
 
-              if [ -f "kafka.server.keystore.jks" ]; then
-                echo "Certificates already exist. Skipping generation."
-                exit 0
-              fi
+                if [ -f "kafka.server.keystore.jks" ]; then
+                    echo "Certificates already exist. Skipping generation."
+                    exit 0
+                fi
 
-              echo "Generating SSL Certificates..."
+                echo "Generating SSL Certificates..."
 
-              # 1. Generate CA
-              openssl req -new -x509 -newkey rsa:4096 -keyout ca-key -out ca-cert -days 3650 -subj "/CN=Kafka-Security-CA" -passout pass:$$CA_PASSWORD
+                # 1. Generate CA
+                openssl req -new -x509 -newkey rsa:4096 -keyout ca-key -out ca-cert -days 3650 -subj "/CN=Kafka-Security-CA" -passout pass:$$CA_PASSWORD
 
-              # 2. Create Truststore and import the CA
-              keytool -keystore kafka.server.truststore.jks -alias CARoot -import -file ca-cert -storepass $$TRUSTSTORE_PASSWORD -keypass $$TRUSTSTORE_PASSWORD -noprompt
+                # 2. Create Truststore and import the CA
+                keytool -keystore kafka.server.truststore.jks -alias CARoot -import -file ca-cert -storepass $$TRUSTSTORE_PASSWORD -keypass $$TRUSTSTORE_PASSWORD -noprompt
 
-              # 3. Generate Keystore
-              keytool -genkeypair -keystore kafka.server.keystore.jks -keyalg RSA -keysize 2048 -alias kafka-broker -validity 3650 -storepass $$KEYSTORE_PASSWORD -keypass $$KEYSTORE_PASSWORD -storetype pkcs12 -dname "CN=kafka-cluster" -ext SAN=DNS:localhost,DNS:broker-1,DNS:broker-2,DNS:broker-3,DNS:controller-1,DNS:controller-2,DNS:localhost,IP:127.0.0.1
+                # 3. Generate Keystore
+                keytool -genkeypair -keystore kafka.server.keystore.jks -keyalg RSA -keysize 2048 -alias kafka-broker -validity 3650 -storepass $$KEYSTORE_PASSWORD -keypass $$KEYSTORE_PASSWORD -storetype pkcs12 -dname "CN=kafka-cluster" -ext SAN=DNS:localhost,DNS:broker-1,DNS:broker-2,DNS:broker-3,DNS:controller-1,DNS:controller-2,DNS:localhost,IP:127.0.0.1
 
-              # 4. Create Certificate Signing Request (CSR)
-              keytool -keystore kafka.server.keystore.jks -certreq -alias kafka-broker -file cert-file -storepass $$KEYSTORE_PASSWORD -keypass $$KEYSTORE_PASSWORD
+                # 4. Create Certificate Signing Request (CSR)
+                keytool -keystore kafka.server.keystore.jks -certreq -alias kafka-broker -file cert-file -storepass $$KEYSTORE_PASSWORD -keypass $$KEYSTORE_PASSWORD
 
-              # 5. Sign the Certificate with the CA
-              openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file -out cert-signed -days 3650 -CAcreateserial -passin pass:$$CA_PASSWORD
+                # 5. Sign the Certificate with the CA
+                openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file -out cert-signed -days 3650 -CAcreateserial -passin pass:$$CA_PASSWORD
 
-              # 6. Import CA into Keystore
-              keytool -importcert -keystore kafka.server.keystore.jks -alias CARoot -file ca-cert -storepass $$KEYSTORE_PASSWORD -keypass $$KEYSTORE_PASSWORD -noprompt
+                # 6. Import CA into Keystore
+                keytool -importcert -keystore kafka.server.keystore.jks -alias CARoot -file ca-cert -storepass $$KEYSTORE_PASSWORD -keypass $$KEYSTORE_PASSWORD -noprompt
 
-              # 7. Import Signed Certificate into Keystore
-              keytool -importcert -keystore kafka.server.keystore.jks -alias kafka-broker -file cert-signed -storepass $$KEYSTORE_PASSWORD -keypass $$KEYSTORE_PASSWORD -noprompt
+                # 7. Import Signed Certificate into Keystore
+                keytool -importcert -keystore kafka.server.keystore.jks -alias kafka-broker -file cert-signed -storepass $$KEYSTORE_PASSWORD -keypass $$KEYSTORE_PASSWORD -noprompt
 
-              # 8. Cleanup and Permissions
-              rm ca-key cert-file cert-signed ca-cert.srl
-              chmod 644 kafka.server.keystore.jks kafka.server.truststore.jks
-              echo "SSL Certificates generated successfully!"
+                # 8. Cleanup and Permissions
+                rm ca-key cert-file cert-signed ca-cert.srl
+                chmod 644 kafka.server.keystore.jks kafka.server.truststore.jks
+                echo "SSL Certificates generated successfully!"
 
-              # 9. Creating client truststore
-              cd /etc/kafka/secrets-client
-              cp /etc/kafka/secrets/ca-cert ./ca-cert
-              
-              keytool -importcert -keystore kafka.client.truststore.jks -alias CARoot -file ca-cert -storepass $$CLIENT_PASS -keypass $$CLIENT_PASS -noprompt
+                # 9. Creating client truststore
+                cd /etc/kafka/secrets-client
+                cp /etc/kafka/secrets/ca-cert ./ca-cert
+                
+                keytool -importcert -keystore kafka.client.truststore.jks -alias CARoot -file ca-cert -storepass $$CLIENT_PASS -keypass $$CLIENT_PASS -noprompt
 
-              touch client.properties
-              echo security.protocol=SSL > client.properties
-              echo ssl.truststore.location=./kafka.client.truststore.jks >> client.properties
-              echo ssl.truststore.password=$$CLIENT_PASS >> client.properties
+                touch client.properties
+                echo security.protocol=SSL > client.properties
+                echo ssl.truststore.location=./kafka.client.truststore.jks >> client.properties
+                echo ssl.truststore.password=$$CLIENT_PASS >> client.properties
             '
 
     controller-1:
