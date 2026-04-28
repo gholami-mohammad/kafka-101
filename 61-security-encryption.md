@@ -1,19 +1,11 @@
-# امنیت در کافکا - Security
-
-امنیت در کافکا در سه گروه بررسی می شود:
-
-- رمزنگاری - Encryption
-- احراز هویت - Authentication
-- تعیین سطح دسترسی به منابع - Authorization
-
-## رمزنگاری - Encryption
+# رمزنگاری - Encryption
 
 - رمزنگاری در کافکا، این اطمینان را میدهد که داده بین کلاینت و broker به صورت ایمن منتقل میشود و از دید روتر های مسیر و سایر افراد در این شبکه مخفی است.
   ![ssl encryption](ssl-encryption.png)
 
 در ادامه، ابتدا به ساخت یک Certificate Authority (CA) خواهیم پرداخت.
 
-### راه اندازی CA
+## راه اندازی CA
 
 **درصورتیکه از یک CA معتبر یا CA در شبکه استفاده میکنید، میتوانید این مرحله را عبور کنید.**
 
@@ -37,9 +29,9 @@ openssl req -new -newkey rsa:4096 -days 365 -x509 -subj "/CN=Kafka-Security-CA" 
 - سوییچ `-out ca-cert`: خروجی دادن گواهینامه عمومی در فایلی به نام ca-cert
 - سوییچ `-noenc`: به این معنی است که کلید خصوصی را رمزنگاری نکن. در نسخه های قدیمی تر این سوییچ با -nodes اعمال میشد.
 
-### تنظیمات SSL در کافکا
+## تنظیمات SSL در کافکا
 
-#### تنظیمات Keystore
+### تنظیمات Keystore
 
 مرحله اول: ساخت key pair و keystore
 
@@ -90,7 +82,7 @@ openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file -out cert-signed -days
 keytool -printcert -v -file cert-signed
 ```
 
-#### تنظیمات Truststore
+### تنظیمات Truststore
 
 مرحله اول: ایجاد کلید برای truststore:
 
@@ -144,24 +136,27 @@ keytool -importcert -keystore kafka.server.keystore.jks -alias kafka-broker -fil
 
 ---
 
-## احراز هویت - Authentication
+### تنظیمات سرور کافکا
 
-- احرازهویت در کافکا این اطمینان را میدهد که کلاینت هایی میتوانند با کافکا ارتباط بگیرند که بتوانند ثابت کنند که هویت آنها برای کافکا مورد تایید است. این موضوع مشابه استفاده از نام کاربری و رمز عبور در زمان ورود به یک وب سایت است.
+برای فعال سازی رمزنگاری ارتباط، تغییرات زیر را در فایل server.propertis و broker.properties اعمال کنید:
 
-![Auth](./auth.png)
+```
+listeners=SSL://0.0.0.0:29092 # ادرس را میتوان مطابق نیاز تغییر داد.
+advertised.listeners=SSL://localhost:29092 # این مقدار میتواند معادل آدرس هاست دی ان اس این سرور باشد
 
-### روش های مختلف احراز هویت
+ssl.keystore.location=/full/path/to/keystore.jks
+ssl.keystore.password=KEYSTORE_PASS
+ssl.key.password=SSL_PASSWORD
+ssl.truststore.location=/full/path/to/truststore.jks
+ssl.truststore.password=TRUST_PASS
 
-- احراز هویت SSL: کلاینت ها با استفاده از یک گواهینامه SSL در کافکا احرازهویت میشود.
-- احراز هویت SASL(Simple Authentication Security Layer):
-    - روش PLAIN: کلاینت با استفاده از یک نام کاربری و رمز عبور احراز هویت میکند. (ضعیف - تنظیمات آسان)
-    - روش Kerberos: مانند استفاده از Microsoft Active Directory (قوی - تنظیمات دشوار)
-    - روش SCRAM: نام کاربری و رمز عبور (قوی - تنظیمات نسبتا دشوار)
+```
 
-## سطح دسترسی - Authorization
+پس از اعمال تغییرات، سرویس کافکا را ری استارت کنید. در صورتیکه با موفقیت ری استارت شد، با دستور زیر میتوانید مطمئن شوید که کافکا در پورت تعیین شده در حال گوش دادن به درخواست هست:
 
-- کنترل میکند که کلاینت احرازهویت شده به چه منابعی مجوز دسترسی دارد.
-- دسترسی ها به کمک ACL (Access Control List) توسط مدیر تنظیم میشود که دسترسی ها را اعمال میکند.
+```sh
+openssl s_client -connect localhost:29092
+```
 
 ---
 
