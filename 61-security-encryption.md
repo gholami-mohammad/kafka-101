@@ -9,11 +9,20 @@
 
 **درصورتیکه از یک CA معتبر یا CA در شبکه استفاده میکنید، میتوانید این مرحله را عبور کنید.**
 
+مرحله اول: تولید کلید CA
+
 ```sh
 mkdir ssl
 cd ssl
 
-openssl req -new -newkey rsa:4096 -days 365 -x509 -subj "/CN=Kafka-Security-CA" -keyout ca-key -out ca-cert -noenc
+export CA_PASSWORD=ca-password
+openssl req -new -x509 -newkey rsa:4096 -keyout ca-key -out ca-cert -days 3650 -subj "/CN=Kafka-Security-CA" -passout pass:$CA_PASSWORD
+```
+
+درصورتیکه میخواهید کلید CA فاقد رمز باشد از این دستور استفاده کنید:
+
+```sh
+openssl req -new -x509 -newkey rsa:4096 -keyout ca-key -out ca-cert -days 3650 -subj "/CN=Kafka-Security-CA" -noenc
 ```
 
 توضیحات:
@@ -31,20 +40,26 @@ openssl req -new -newkey rsa:4096 -days 365 -x509 -subj "/CN=Kafka-Security-CA" 
 
 ## تنظیمات SSL در کافکا
 
-### تنظیمات Keystore
+### تنظیمات Truststore
 
-مرحله اول: ساخت key pair و keystore
+مرحله دوم: ایجاد کلید برای truststore و ایمپورت کردن گواهینامه صادره از CA در آن:
 
 ```sh
-export SRVPASS=STRONG_SECRET
-
-cd ssl # ssl directory created in CA setup.
-
-keytool -genkeypair -keystore kafka.server.keystore.jks -keyalg RSA -keysize 2048 -alias kafka-broker -validity 365 -storepass $SRVPASS -keypass $SRVPASS -dname "CN=localhost" -storetype pkcs12
+export TRUSTSTORE_PASSWORD=truststore-pass
+keytool -importcert -keystore kafka.server.truststore.jks -alias CARoot -file ca-cert -storepass $TRUSTSTORE_PASSWORD -keypass $TRUSTSTORE_PASSWORD -noprompt
 ```
 
-نکته: در سوییچ dname مقدار تنظیم شده برای CN باید نام هاست یا IP مربوط به broker کافکا باشد.
-درصورتیکه این مقدار مانند این مثال، به localhost تنظیم شود، هیچ client بیرون از محیط local قادر به اتصال به این بروکر نخواهد بود.
+### تنظیمات Keystore
+
+مرحله سوم: ساخت key pair و keystore
+
+```sh
+export KEYSTORE_PASSWORD=keystore-pass
+
+keytool -genkeypair -keystore kafka.server.keystore.jks -keyalg RSA -keysize 2048 -alias kafka-broker -validity 3650 -storepass $KEYSTORE_PASSWORD -keypass $KEYSTORE_PASSWORD -storetype pkcs12 -dname "CN=kafka-cluster" -ext SAN=DNS:localhost,DNS:broker-1,DNS:broker-2,DNS:broker-3,DNS:controller-1,DNS:controller-2
+```
+
+نکته: در سوییچ ext میتوان لیست تمام بروکر ها و کنترلر ها را ذکر کرد.
 
 جهت مشاهده محتوای کلید تولید شده را مشاهده کنیم از دستور زیر استفاده میکنیم:
 
@@ -52,28 +67,22 @@ keytool -genkeypair -keystore kafka.server.keystore.jks -keyalg RSA -keysize 204
 keytool -list -v -keystore kafka.server.keystore.jks
 ```
 
-مرحله دوم: ایجاد درخواست گواهینامه یا CSR (Certificate Signing Request)
+مرحله چهارم: ایجاد درخواست گواهینامه یا CSR (Certificate Signing Request)
 
 ```sh
-export SRVPASS=STRONG_SECRET
-cd ssl # ssl directory created in CA setup.
-
-## مرحله اول: دریافت فایل درخواست امضای گواهینامه - Sign request
-keytool -keystore kafka.server.keystore.jks -certreq -alias kafka-broker -file cert-file -storepass $SRVPASS -keypass $SRVPASS
+## دریافت فایل درخواست امضای گواهینامه - Sign request
+keytool -keystore kafka.server.keystore.jks -certreq -alias kafka-broker -file cert-file -storepass $KEYSTORE_PASSWORD -keypass $KEYSTORE_PASSWORD
 ```
 
 نکته: مقدار تنظیم شده برای سوییچ alias باید همانند مقداری باشد که زمان ساخت keystore استفاده شده است.
 
-مرحله سوم: امضای CSR در CA
+مرحله پنجم: امضای CSR در CA
 
 درصورتیکه از یک CA معتبر یا CA شبکه بخواهیم گواهینامه دریافت کنیم، این فایل را برای آنها ارسال میکنیم و آنها یک گواهینامه برای ما تولید میکنند.
 حال اگر بخواهیم خودمان به صورت self signed این گواهینامه را تولید کنیم، مرحله بعد را نیز انجام میدهیم:
 
 ```sh
-export SRVPASS=STRONG_SECRET
-cd ssl # ssl directory created in CA setup.
-
-openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file -out cert-signed -days 365 -CAcreateserial -passin pass:$SRVPASS
+openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file -out cert-signed -days 3650 -CAcreateserial -passin pass:$CA_PASSWORD
 ```
 
 جهت مشاهده جزییات گواهینامه از دستور زیر استفاده میشود:
@@ -82,56 +91,16 @@ openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file -out cert-signed -days
 keytool -printcert -v -file cert-signed
 ```
 
-### تنظیمات Truststore
-
-مرحله اول: ایجاد کلید برای truststore:
+مرحله ششم: در این مرحله میبایست گواهینامه عمومی تولید شده توسط CA را به keystore ایمپورت کنیم.
 
 ```sh
-keytool -importcert -keystore kafka.server.truststore.jks -alias CARoot -file ca-cert -storepass $SRVPASS -keypass $SRVPASS -noprompt
+keytool -importcert -keystore kafka.server.keystore.jks -alias CARoot -file ca-cert -storepass $KEYSTORE_PASSWORD -keypass $KEYSTORE_PASSWORD -noprompt
 ```
 
-این دستور به این معناست که ما یک keystrore ایجاد میکنیم که گواهینامه عمومی CA را در آن import میکنیم.
-
-مرحله دوم: در این مرحله میبایست گواهینامه عمومی تولید شده توسط CA را به keystore ایمپورت کنیم.
+مرحله هفتم: در این مرحله نیز باید کلید امضا شده ای که در مرحله پنجم ایجاد شده را به keystore ایمپورت کنیم.
 
 ```sh
-keytool -importcert -keystore kafka.server.keystore.jks -alias CARoot -file ca-cert -storepass $SRVPASS -keypass $SRVPASS -noprompt
-```
-
-مرحله نهایی: در این مرحله نیز باید کلید امضا شده ای که در مرحله سوم تنظیمات keystore تولید کرده ایم را به keystore ایمپورت کنیم.
-
-```sh
-keytool -importcert -keystore kafka.server.keystore.jks -alias kafka-broker -file cert-signed -storepass $SRVPASS -keypass $SRVPASS -noprompt
-```
-
----
-
-تمامی دستورات این بخش به صورت یکجا:
-
-```sh
-mkdir ssl
-cd ssl
-
-
-# CA
-openssl req -new -newkey rsa:4096 -days 365 -x509 -subj "/CN=Kafka-Security-CA" -keyout ca-key -out ca-cert -noenc
-
-
-# keystore
-export SRVPASS=STRONG_SECRET
-
-keytool -genkeypair -keystore kafka.server.keystore.jks -keyalg RSA -keysize 2048 -alias kafka-broker -validity 365 -storepass $SRVPASS -keypass $SRVPASS -dname "CN=localhost" -storetype pkcs12
-
-keytool -keystore kafka.server.keystore.jks -certreq -alias kafka-broker -file cert-file -storepass $SRVPASS -keypass $SRVPASS
-
-openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file -out cert-signed -days 365 -CAcreateserial -passin pass:$SRVPASS
-
-# Truststore
-keytool -importcert -keystore kafka.server.truststore.jks -alias CARoot -file ca-cert -storepass $SRVPASS -keypass $SRVPASS -noprompt
-
-keytool -importcert -keystore kafka.server.keystore.jks -alias CARoot -file ca-cert -storepass $SRVPASS -keypass $SRVPASS -noprompt
-
-keytool -importcert -keystore kafka.server.keystore.jks -alias kafka-broker -file cert-signed -storepass $SRVPASS -keypass $SRVPASS -noprompt
+keytool -importcert -keystore kafka.server.keystore.jks -alias kafka-broker -file cert-signed -storepass $KEYSTORE_PASSWORD -keypass $KEYSTORE_PASSWORD -noprompt
 ```
 
 ---
@@ -140,16 +109,16 @@ keytool -importcert -keystore kafka.server.keystore.jks -alias kafka-broker -fil
 
 برای فعال سازی رمزنگاری ارتباط، تغییرات زیر را در فایل server.propertis و broker.properties اعمال کنید:
 
-```
+```conf
 listeners=SSL://0.0.0.0:29092 # ادرس را میتوان مطابق نیاز تغییر داد.
 advertised.listeners=SSL://localhost:29092 # این مقدار میتواند معادل آدرس هاست دی ان اس این سرور باشد
 
 # آدرس فایل های زیر مطابق سرور شما باید تغییر کند
 ssl.keystore.location=/Users/sam/Desktop/workspace/kafka/ssl/kafka.server.keystore.jks
-ssl.keystore.password=STRONG_SECRET
-ssl.key.password=STRONG_SECRET
+ssl.keystore.password=keystore-pass
+ssl.key.password=keystore-pass
 ssl.truststore.location=/Users/sam/Desktop/workspace/kafka/ssl/kafka.server.truststore.jks
-ssl.truststore.password=STRONG_SECRET
+ssl.truststore.password=truststore-pass
 
 ```
 
@@ -178,9 +147,9 @@ openssl s_client -connect localhost:29092
 mkdir ssl-client
 cd ssl-client
 
-cp /server/ssl/pasth/ca-cert ./ca-cert
+cp /server/ssl/path/to/ca-cert ./ca-cert
 
-export CLIENT_PASS=client-password
+export CLIENT_PASS=client-pass
 ```
 
 حال، میبایست یک truststore برای کلاینت ایجاد کنیم و فایل ca-cert موجود را در آن اضافه نماییم.
@@ -201,7 +170,7 @@ keytool -list -v -keystore kafka.client.truststore.jks
 tee client.properties <<EOF
 security.protocol=SSL
 ssl.truststore.location=/Users/sam/Desktop/workspace/kafka/ssl-client/kafka.client.truststore.jks
-ssl.truststore.password=client-password
+ssl.truststore.password=client-pass
 EOF
 ```
 

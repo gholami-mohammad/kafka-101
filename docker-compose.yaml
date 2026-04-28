@@ -1,183 +1,207 @@
-version: "3.8"
-
+---
 services:
-    # =========================================
-    # CONTROLLERS (KRaft Quorum)
-    # =========================================
+    ssl-generator:
+        image: confluentinc/cp-kafka:7.6.1
+        container_name: ssl-generator
+        volumes:
+            - ./secrets:/etc/kafka/secrets
+            - ./secrets-client:/etc/kafka/secrets-client
+        environment:
+            - KEYSTORE_PASSWORD=TKtPspFDZ2CYz3EluZMha24Drp
+            - TRUSTSTORE_PASSWORD=a6DlDATAOHLTaIOcbRGZdpEYOx0
+            - CA_PASSWORD=RstSWx9LvFSs3cjnBVkk1UhMyQQ
+            - CLIENT_PASS=xLPrcS2pLLeN8WJmr1EVmEFCc
+        command: >
+            bash -c '
+              cd /etc/kafka/secrets
+
+              if [ -f "kafka.server.keystore.jks" ]; then
+                echo "Certificates already exist. Skipping generation."
+                exit 0
+              fi
+
+              echo "Generating SSL Certificates..."
+
+              # 1. Generate CA
+              openssl req -new -x509 -newkey rsa:4096 -keyout ca-key -out ca-cert -days 3650 -subj "/CN=Kafka-Security-CA" -passout pass:$$CA_PASSWORD
+
+              # 2. Create Truststore and import the CA
+              keytool -keystore kafka.server.truststore.jks -alias CARoot -import -file ca-cert -storepass $$TRUSTSTORE_PASSWORD -keypass $$TRUSTSTORE_PASSWORD -noprompt
+
+              # 3. Generate Keystore
+              keytool -genkeypair -keystore kafka.server.keystore.jks -keyalg RSA -keysize 2048 -alias kafka-broker -validity 3650 -storepass $$KEYSTORE_PASSWORD -keypass $$KEYSTORE_PASSWORD -storetype pkcs12 -dname "CN=kafka-cluster" -ext SAN=DNS:localhost,DNS:broker-1,DNS:broker-2,DNS:broker-3,DNS:controller-1,DNS:controller-2,DNS:localhost,IP:127.0.0.1
+
+              # 4. Create Certificate Signing Request (CSR)
+              keytool -keystore kafka.server.keystore.jks -certreq -alias kafka-broker -file cert-file -storepass $$KEYSTORE_PASSWORD -keypass $$KEYSTORE_PASSWORD
+
+              # 5. Sign the Certificate with the CA
+              openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file -out cert-signed -days 3650 -CAcreateserial -passin pass:$$CA_PASSWORD
+
+              # 6. Import CA into Keystore
+              keytool -importcert -keystore kafka.server.keystore.jks -alias CARoot -file ca-cert -storepass $$KEYSTORE_PASSWORD -keypass $$KEYSTORE_PASSWORD -noprompt
+
+              # 7. Import Signed Certificate into Keystore
+              keytool -importcert -keystore kafka.server.keystore.jks -alias kafka-broker -file cert-signed -storepass $$KEYSTORE_PASSWORD -keypass $$KEYSTORE_PASSWORD -noprompt
+
+              # 8. Cleanup and Permissions
+              rm ca-key cert-file cert-signed ca-cert.srl
+              chmod 644 kafka.server.keystore.jks kafka.server.truststore.jks
+              echo "SSL Certificates generated successfully!"
+
+              # 9. Creating client truststore
+              cd /etc/kafka/secrets-client
+              cp /etc/kafka/secrets/ca-cert ./ca-cert
+              
+              keytool -importcert -keystore kafka.client.truststore.jks -alias CARoot -file ca-cert -storepass $$CLIENT_PASS -keypass $$CLIENT_PASS -noprompt
+
+              touch client.properties
+              echo security.protocol=SSL > client.properties
+              echo ssl.truststore.location=./kafka.client.truststore.jks >> client.properties
+              echo ssl.truststore.password=$$CLIENT_PASS >> client.properties
+            '
+
     controller-1:
         image: confluentinc/cp-kafka:7.6.1
-        hostname: controller-1
         container_name: controller-1
+        depends_on:
+            ssl-generator:
+                condition: service_completed_successfully
         environment:
-            # Property: node.id
-            # What it is: A unique integer identifier for this specific node within the entire Kafka cluster.
-            # What it does: Every broker and controller in a KRaft cluster must have a completely unique node ID.
-            # This is how the cluster distinguishes one machine/container from another.
             KAFKA_NODE_ID: 1
-
-            # Property: process.roles
-            # What it is: Defines the role(s) this specific node will play in the KRaft cluster.
-            # What it does: It can be set to broker, controller, or broker,controller (combined).
-            # By setting it strictly to controller, you are dedicating this node to manage cluster
-            # metadata and elect leaders, meaning it will not store normal client topics or partition data.
-            KAFKA_PROCESS_ROLES: "controller"
-
-            # Property: controller.quorum.voters
-            # What it is: The KRaft equivalent of a Zookeeper connection string.
-            # What it does: It provides a list of all the controller nodes that make up the quorum.
-            # The format is node_id@hostname:port. Every node in the cluster uses this list to know
-            # who the controllers are and where to reach them to sync metadata.
-            KAFKA_CONTROLLER_QUORUM_VOTERS: "1@controller-1:29093,2@controller-2:29093"
-
-            # Property: listeners
-            # What it is: Defines the network interfaces and ports the node binds to.
-            # What it does: It tells the container to listen for traffic on the
-            # internal hostname controller-1 at port 29093, and labels this
-            # listening socket with the custom name CONTROLLER.
-            KAFKA_LISTENERS: "CONTROLLER://controller-1:29093"
-
-            # Property: controller.listener.names
-            # What it is: Identifies which listener is reserved for KRaft metadata traffic.
-            # What it does: It tells Kafka that any network traffic arriving on the
-            # listener named CONTROLLER is strictly for internal cluster management
-            # between controllers and brokers. Normal client traffic
-            # (like producers/consumers) is not allowed on this listener.
-            KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
-
-            # Property: listener.security.protocol.map
-            # What it is: A translation dictionary for your custom listener names.
-            # What it does: Kafka only natively understands security protocols like
-            # PLAINTEXT, SSL, or SASL_PLAINTEXT. This maps your custom listener
-            # name (CONTROLLER) to the underlying protocol (PLAINTEXT,
-            # meaning unencrypted traffic).
-            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT"
-
-            # Property: log.dirs
-            # What it is: The file system directory where Kafka writes its data.
-            # What it does: Because this node is solely a controller,
-            # it does not store standard Kafka topics. Instead, it uses this
-            # directory to store the KRaft metadata log (the internal record
-            # of cluster state, topics, partitions, and configs).
+            KAFKA_PROCESS_ROLES: controller
+            KAFKA_LISTENERS: CONTROLLER://0.0.0.0:29093
+            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:SSL
+            KAFKA_CONTROLLER_QUORUM_VOTERS: 1@controller-1:29093,2@controller-2:29093
+            KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+            # SSL properties
+            KAFKA_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
+            KAFKA_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_KEY_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
+            KAFKA_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+            CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
             KAFKA_LOG_DIRS: "/tmp/kraft-controller-logs"
-
-            # Property: There is no direct property in server.properties for this.
-            # What it is: A unique, base64-encoded string representing the identity of your Kafka cluster.
-            # What it does: In KRaft mode, every node (broker and controller) must be
-            # formatted with the exact same CLUSTER_ID. If a node starts up with
-            # a different cluster ID, it will refuse to join the quorum.
-            # This variable is used to format cluster storage:
-            # kafka-storage.sh format -t <CLUSTER_ID> -c /path/to/server.properties
-            CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
+        volumes:
+            - ./secrets:/etc/kafka/secrets
 
     controller-2:
         image: confluentinc/cp-kafka:7.6.1
-        hostname: controller-2
         container_name: controller-2
+        depends_on:
+            ssl-generator:
+                condition: service_completed_successfully
         environment:
             KAFKA_NODE_ID: 2
-            KAFKA_PROCESS_ROLES: "controller"
-            KAFKA_CONTROLLER_QUORUM_VOTERS: "1@controller-1:29093,2@controller-2:29093"
-            KAFKA_LISTENERS: "CONTROLLER://controller-2:29093"
-            KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
-            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT"
+            KAFKA_PROCESS_ROLES: controller
+            KAFKA_LISTENERS: CONTROLLER://0.0.0.0:29093
+            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:SSL
+            KAFKA_CONTROLLER_QUORUM_VOTERS: 1@controller-1:29093,2@controller-2:29093
+            KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+            # SSL properties
+            KAFKA_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
+            KAFKA_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_KEY_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
+            KAFKA_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+            CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
             KAFKA_LOG_DIRS: "/tmp/kraft-controller-logs"
-            CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
+        volumes:
+            - ./secrets:/etc/kafka/secrets
 
-    # =========================================
-    # BROKERS
-    # =========================================
     broker-1:
         image: confluentinc/cp-kafka:7.6.1
-        hostname: broker-1
         container_name: broker-1
         depends_on:
-            - controller-1
-            - controller-2
+            controller-1:
+                condition: service_started
+            controller-2:
+                condition: service_started
         ports:
             - "9092:9092"
         environment:
             KAFKA_NODE_ID: 3
-            KAFKA_PROCESS_ROLES: "broker"
-            KAFKA_CONTROLLER_QUORUM_VOTERS: "1@controller-1:29093,2@controller-2:29093"
-            KAFKA_LISTENERS: "PLAINTEXT://broker-1:29092,PLAINTEXT_HOST://0.0.0.0:9092"
-
-            # Property: advertised.listeners
-            # What it is: The list of hostnames and ports the broker passes back to clients and other brokers.
-            # What it does: When a client initially connects to Kafka,
-            # it asks for the cluster metadata. The broker replies with
-            # these “advertised” addresses. The client will then disconnect and
-            # reconnect using these addresses to actually read or write data.
-            # In this setup, broker-1:29092 is given to other Docker containers
-            # (internal network), and localhost:9092 is given to clients running on host machine.
-            KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://broker-1:29092,PLAINTEXT_HOST://localhost:9092"
-
-            # Property: inter.broker.listener.name
-            # What it is: The name of the listener dedicated to communication between brokers.
-            # What it does: It tells the broker to use the listener named PLAINTEXT
-            # (which mapped to broker-1:29092) for internal cluster operations,
-            #  such as replicating partition data from a leader broker to a follower broker.
-            KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
-
-            # What it is: Identifies the name of the listener used by the KRaft controllers.
-            # What it does: Even on a dedicated broker node (which doesn’t host
-            # a controller listener itself), the broker needs this
-            # configuration so it knows how to interpret the addresses provided
-            # in KAFKA_CONTROLLER_QUORUM_VOTERS and correctly route its
-            # metadata requests to the controllers.
-            # Equivalent Property: controller.listener.names
-            KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
-            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
-            KAFKA_LOG_DIRS: "/tmp/kraft-broker-logs"
-            CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
+            KAFKA_PROCESS_ROLES: broker
+            KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092
+            KAFKA_ADVERTISED_LISTENERS: INTERNAL://broker-1:29092,EXTERNAL://localhost:9092
+            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:SSL,EXTERNAL:SSL,CONTROLLER:SSL
+            KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+            KAFKA_CONTROLLER_QUORUM_VOTERS: 1@controller-1:29093,2@controller-2:29093
+            KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+            # SSL properties
+            KAFKA_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
+            KAFKA_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_KEY_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
+            KAFKA_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+            CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+        volumes:
+            - ./secrets:/etc/kafka/secrets
 
     broker-2:
         image: confluentinc/cp-kafka:7.6.1
-        hostname: broker-2
         container_name: broker-2
         depends_on:
-            - controller-1
-            - controller-2
+            controller-1:
+                condition: service_started
+            controller-2:
+                condition: service_started
         ports:
             - "9093:9093"
         environment:
             KAFKA_NODE_ID: 4
-            KAFKA_PROCESS_ROLES: "broker"
-            KAFKA_CONTROLLER_QUORUM_VOTERS: "1@controller-1:29093,2@controller-2:29093"
-            KAFKA_LISTENERS: "PLAINTEXT://broker-2:29092,PLAINTEXT_HOST://0.0.0.0:9093"
-            KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://broker-2:29092,PLAINTEXT_HOST://localhost:9093"
-            KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
-            KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
-            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
-            KAFKA_LOG_DIRS: "/tmp/kraft-broker-logs"
-            CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
+            KAFKA_PROCESS_ROLES: broker
+            KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9093
+            KAFKA_ADVERTISED_LISTENERS: INTERNAL://broker-2:29092,EXTERNAL://localhost:9093
+            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:SSL,EXTERNAL:SSL,CONTROLLER:SSL
+            KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+            KAFKA_CONTROLLER_QUORUM_VOTERS: 1@controller-1:29093,2@controller-2:29093
+            KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+            # SSL properties
+            KAFKA_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
+            KAFKA_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_KEY_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
+            KAFKA_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+            CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+        volumes:
+            - ./secrets:/etc/kafka/secrets
 
     broker-3:
         image: confluentinc/cp-kafka:7.6.1
-        hostname: broker-3
         container_name: broker-3
         depends_on:
-            - controller-1
-            - controller-2
+            controller-1:
+                condition: service_started
+            controller-2:
+                condition: service_started
         ports:
             - "9094:9094"
         environment:
             KAFKA_NODE_ID: 5
-            KAFKA_PROCESS_ROLES: "broker"
-            KAFKA_CONTROLLER_QUORUM_VOTERS: "1@controller-1:29093,2@controller-2:29093"
-            KAFKA_LISTENERS: "PLAINTEXT://broker-3:29092,PLAINTEXT_HOST://0.0.0.0:9094"
-            KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://broker-3:29092,PLAINTEXT_HOST://localhost:9094"
-            KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
-            KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
-            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
-            KAFKA_LOG_DIRS: "/tmp/kraft-broker-logs"
-            CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
+            KAFKA_PROCESS_ROLES: broker
+            KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9094
+            KAFKA_ADVERTISED_LISTENERS: INTERNAL://broker-3:29092,EXTERNAL://localhost:9094
+            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:SSL,EXTERNAL:SSL,CONTROLLER:SSL
+            KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+            KAFKA_CONTROLLER_QUORUM_VOTERS: 1@controller-1:29093,2@controller-2:29093
+            KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+            # SSL properties
+            KAFKA_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
+            KAFKA_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_KEY_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
+            KAFKA_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+            CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+        volumes:
+            - ./secrets:/etc/kafka/secrets
 
-    # =========================================
-    # SCHEMA REGISTRY
-    # =========================================
     schema-registry:
         image: confluentinc/cp-schema-registry:7.6.1
-        hostname: schema-registry
         container_name: schema-registry
         depends_on:
             - broker-1
@@ -188,55 +212,95 @@ services:
         environment:
             SCHEMA_REGISTRY_HOST_NAME: schema-registry
             SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "broker-1:29092,broker-2:29092,broker-3:29092"
-            SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+            SCHEMA_REGISTRY_KAFKASTORE_SECURITY_PROTOCOL: SSL
+            SCHEMA_REGISTRY_KAFKASTORE_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
+            SCHEMA_REGISTRY_KAFKASTORE_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            SCHEMA_REGISTRY_KAFKASTORE_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
+            SCHEMA_REGISTRY_KAFKASTORE_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            SCHEMA_REGISTRY_KAFKASTORE_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
 
-    # =========================================
-    # KAFKA CONNECT
-    # =========================================
+        volumes:
+            - ./secrets:/etc/kafka/secrets
+
     connect:
         image: confluentinc/cp-kafka-connect:7.6.1
-        hostname: connect
         container_name: connect
         depends_on:
             - broker-1
             - broker-2
             - broker-3
             - schema-registry
+
         ports:
             - "8083:8083"
         environment:
             CONNECT_BOOTSTRAP_SERVERS: "broker-1:29092,broker-2:29092,broker-3:29092"
-            CONNECT_REST_ADVERTISED_HOST_NAME: connect
+            CONNECT_REST_PORT: 8083
             CONNECT_GROUP_ID: compose-connect-group
             CONNECT_CONFIG_STORAGE_TOPIC: docker-connect-configs
-            CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 3
-            CONNECT_OFFSET_FLUSH_INTERVAL_MS: 10000
             CONNECT_OFFSET_STORAGE_TOPIC: docker-connect-offsets
-            CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 3
             CONNECT_STATUS_STORAGE_TOPIC: docker-connect-status
-            CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 3
-            CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
-            CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
-            CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
-            CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
+            CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+            CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+            CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+            CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+            CONNECT_REST_ADVERTISED_HOST_NAME: connect
 
-    # =========================================
-    # KAFKA UI
-    # =========================================
+            # Tell Connect to use SSL to talk to Brokers
+            CONNECT_SECURITY_PROTOCOL: SSL
+
+            # SSL Truststore & Keystore configuration
+            CONNECT_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
+            CONNECT_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            CONNECT_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
+            CONNECT_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+
+            # Disable Hostname verification for the internal Docker network
+            CONNECT_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+
+            # Producer and Consumer specific SSL settings (required for internal topics)
+            CONNECT_PRODUCER_SECURITY_PROTOCOL: SSL
+            CONNECT_PRODUCER_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
+            CONNECT_PRODUCER_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            CONNECT_PRODUCER_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
+            CONNECT_PRODUCER_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            CONNECT_PRODUCER_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+
+            CONNECT_CONSUMER_SECURITY_PROTOCOL: SSL
+            CONNECT_CONSUMER_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
+            CONNECT_CONSUMER_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            CONNECT_CONSUMER_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
+            CONNECT_CONSUMER_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            CONNECT_CONSUMER_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+        volumes:
+            - ./secrets:/etc/kafka/secrets
+
     kafka-ui:
         image: provectuslabs/kafka-ui:latest
         container_name: kafka-ui
+        ports:
+            - "8080:8080"
         depends_on:
             - broker-1
             - broker-2
             - broker-3
-            - schema-registry
-            - connect
-        ports:
-            - "8080:8080"
+        volumes:
+            - ./secrets:/etc/kafka/secrets
         environment:
-            KAFKA_CLUSTERS_0_NAME: local-cluster
+            # Cluster definition
+            KAFKA_CLUSTERS_0_NAME: local-kraft-ssl
             KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: broker-1:29092,broker-2:29092,broker-3:29092
+
+            # SSL Configuration
+            KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: SSL
+            KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
+            KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            KAFKA_CLUSTERS_0_PROPERTIES_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
+            KAFKA_CLUSTERS_0_PROPERTIES_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            # Disable endpoint identification for internal Docker network
+            KAFKA_CLUSTERS_0_PROPERTIES_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+
             KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+
             KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: local-connect
             KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://connect:8083
