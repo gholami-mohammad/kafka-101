@@ -144,11 +144,12 @@ keytool -importcert -keystore kafka.server.keystore.jks -alias kafka-broker -fil
 listeners=SSL://0.0.0.0:29092 # ادرس را میتوان مطابق نیاز تغییر داد.
 advertised.listeners=SSL://localhost:29092 # این مقدار میتواند معادل آدرس هاست دی ان اس این سرور باشد
 
-ssl.keystore.location=/full/path/to/keystore.jks
-ssl.keystore.password=KEYSTORE_PASS
-ssl.key.password=SSL_PASSWORD
-ssl.truststore.location=/full/path/to/truststore.jks
-ssl.truststore.password=TRUST_PASS
+# آدرس فایل های زیر مطابق سرور شما باید تغییر کند
+ssl.keystore.location=/Users/sam/Desktop/workspace/kafka/ssl/kafka.server.keystore.jks
+ssl.keystore.password=STRONG_SECRET
+ssl.key.password=STRONG_SECRET
+ssl.truststore.location=/Users/sam/Desktop/workspace/kafka/ssl/kafka.server.truststore.jks
+ssl.truststore.password=STRONG_SECRET
 
 ```
 
@@ -156,6 +157,70 @@ ssl.truststore.password=TRUST_PASS
 
 ```sh
 openssl s_client -connect localhost:29092
+```
+
+تا این مرحله ما سرور کافکا را تنظیم کرده ایم. در ادامه به تنظیمات کلاینت کافکا خواهیم پرداخت.
+
+### تنظیمات کلاینت کافکا
+
+برای اضافه کردن کلیدهای عمومی کافکا در کلاینت، ۲ راه وجود دارد:
+اول: در keystore کلاینت، تمام کلید هایی که بوسیله CA معتبر شبکه تولید شده اند، معتبر دانسته شوند.
+
+دوم: تک تک گواهینامه های عمومی تولید شده یک یک در keystore کلاینت اضافه شود. این روش سربار تنظیمات بسیار بالایی دارد خصوصا زمانیکه تعداد بروکر های شبکه زیاد باشد.
+
+### روش اول
+
+ابتدا فایل کلید عمومی که توسط CA تولید شده است را به پوشه ای به نام ssl کپی کنید.
+
+در این مستند، در زمان تنظیم سرور،‌این فایل به نام ca-cert ساخته شده است.
+
+```sh
+mkdir ssl-client
+cd ssl-client
+
+cp /server/ssl/pasth/ca-cert ./ca-cert
+
+export CLIENT_PASS=client-password
+```
+
+حال، میبایست یک truststore برای کلاینت ایجاد کنیم و فایل ca-cert موجود را در آن اضافه نماییم.
+
+```sh
+keytool -importcert -keystore kafka.client.truststore.jks -alias CARoot -file ca-cert -storepass $CLIENT_PASS -keypass $CLIENT_PASS -noprompt
+```
+
+برای مشاهده جزییات این truststore میتوانید از این دستور استفاده کنید:
+
+```sh
+keytool -list -v -keystore kafka.client.truststore.jks
+```
+
+حال نیاز به ساخت یک فایل تنظیمات برای کلاینت جهت ارتباط با سرور کافکا داریم:
+
+```sh
+tee client.properties <<EOF
+security.protocol=SSL
+ssl.truststore.location=/Users/sam/Desktop/workspace/kafka/ssl-client/kafka.client.truststore.jks
+ssl.truststore.password=client-password
+EOF
+```
+
+توجه: آدرس فایل ssl.truststore.location را مطابق سرور خودتان تنظیم نمایید
+
+در ادامه میتوان به کمک دستورات کافکا به سرور ارتباط امن گرفت. برای مثال جهت اجرای دستور producer میتوان به شکل زیر عمل کرد:
+
+```sh
+kafka-topics --bootstrap-server localhost:29092 --command-config ./client.properties --create --topic some-topic
+
+kafka-console-producer --bootstrap-server localhost:29092 --topic some-topic --command-config ./client.properties
+```
+
+توجه کنید که localhost:29092 آدرس سرور کافکا است که ssl است.
+
+همچنین برای خواندن پیام های تاپیک:
+
+```sh
+kafka-console-consumer --bootstrap-server localhost:29092 --command-config ./client.properties --topic some-topic --from-beginning
 ```
 
 ---
