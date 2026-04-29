@@ -56,8 +56,10 @@ keytool -importcert -keystore kafka.server.truststore.jks -alias CARoot -file ca
 ```sh
 export KEYSTORE_PASSWORD=keystore-pass
 
-keytool -genkeypair -keystore kafka.server.keystore.jks -keyalg RSA -keysize 2048 -alias kafka-broker -validity 3650 -storepass $KEYSTORE_PASSWORD -keypass $KEYSTORE_PASSWORD -storetype pkcs12 -dname "CN=kafka-cluster" -ext SAN=DNS:localhost,DNS:broker-1,DNS:broker-2,DNS:broker-3,DNS:controller-1,DNS:controller-2
+keytool -genkeypair -keystore kafka.server.keystore.jks -keyalg RSA -keysize 2048 -alias kafka-broker -validity 3650 -storepass $KEYSTORE_PASSWORD -keypass $KEYSTORE_PASSWORD -storetype pkcs12 -dname "CN=localhost" -ext SAN=DNS:localhost,DNS:broker-1,DNS:broker-2,DNS:broker-3,DNS:controller-1,DNS:controller-2
 ```
+
+مقدار CN در گواهینامه باید با آدرس بروکر در شبکه یکی باشد. در غیر اینصورت امکان ارتباط با بروکر میسر نخواهد بود.
 
 نکته: در سوییچ ext میتوان لیست تمام بروکر ها و کنترلر ها را ذکر کرد.
 
