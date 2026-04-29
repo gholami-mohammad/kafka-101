@@ -15,4 +15,5 @@
 - [Security](./60-security.md)
     - [Encryptio](./61-security-encryption.md)
     - [Authentication](./62-security-authentication.md)
-    - [Authorization](./63-security-authorization.md)
+        - [SSL Authentication](./63-security-authentication-ssl.md)
+    - [Authorization](./66-security-authorization.md)

@@ -7,10 +7,10 @@ services:
             - ./secrets:/etc/kafka/secrets
             - ./secrets-client:/etc/kafka/secrets-client
         environment:
-            - KEYSTORE_PASSWORD=TKtPspFDZ2CYz3EluZMha24Drp
-            - TRUSTSTORE_PASSWORD=a6DlDATAOHLTaIOcbRGZdpEYOx0
-            - CA_PASSWORD=RstSWx9LvFSs3cjnBVkk1UhMyQQ
-            - CLIENT_PASS=xLPrcS2pLLeN8WJmr1EVmEFCc
+            - KEYSTORE_PASSWORD=keystoreTKtPspFDZ2CYz3EluZMha24Drp
+            - TRUSTSTORE_PASSWORD=truststroreXa6DlDATAOHLTaIOcbRGZdpEYOx0
+            - CA_PASSWORD=caRstSWx9LvFSs3cjnBVkk1UhMyQQ
+            - CLIENT_PASS=clinetOLPrcS2pLLeN8WJmr1EVmEFCc
         command: >
             bash -c '
                 cd /etc/kafka/secrets
@@ -44,7 +44,6 @@ services:
                 keytool -importcert -keystore kafka.server.keystore.jks -alias kafka-broker -file cert-signed -storepass $$KEYSTORE_PASSWORD -keypass $$KEYSTORE_PASSWORD -noprompt
 
                 # 8. Cleanup and Permissions
-                rm ca-key cert-file cert-signed ca-cert.srl
                 chmod 644 kafka.server.keystore.jks kafka.server.truststore.jks
                 echo "SSL Certificates generated successfully!"
 
@@ -75,10 +74,10 @@ services:
             KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
             # SSL properties
             KAFKA_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
-            KAFKA_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
-            KAFKA_SSL_KEY_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_KEYSTORE_PASSWORD: keystoreTKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_KEY_PASSWORD: keystoreTKtPspFDZ2CYz3EluZMha24Drp
             KAFKA_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
-            KAFKA_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            KAFKA_SSL_TRUSTSTORE_PASSWORD: truststroreXa6DlDATAOHLTaIOcbRGZdpEYOx0
             KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
             CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
             KAFKA_LOG_DIRS: "/tmp/kraft-controller-logs"
@@ -100,10 +99,10 @@ services:
             KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
             # SSL properties
             KAFKA_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
-            KAFKA_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
-            KAFKA_SSL_KEY_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_KEYSTORE_PASSWORD: keystoreTKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_KEY_PASSWORD: keystoreTKtPspFDZ2CYz3EluZMha24Drp
             KAFKA_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
-            KAFKA_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            KAFKA_SSL_TRUSTSTORE_PASSWORD: truststroreXa6DlDATAOHLTaIOcbRGZdpEYOx0
             KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
             CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
             KAFKA_LOG_DIRS: "/tmp/kraft-controller-logs"
@@ -131,11 +130,12 @@ services:
             KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
             # SSL properties
             KAFKA_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
-            KAFKA_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
-            KAFKA_SSL_KEY_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_KEYSTORE_PASSWORD: keystoreTKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_KEY_PASSWORD: keystoreTKtPspFDZ2CYz3EluZMha24Drp
             KAFKA_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
-            KAFKA_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            KAFKA_SSL_TRUSTSTORE_PASSWORD: truststroreXa6DlDATAOHLTaIOcbRGZdpEYOx0
             KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+            KAFKA_SSL_CLIENT_AUTH: "required"
             CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
         volumes:
             - ./secrets:/etc/kafka/secrets
@@ -161,11 +161,12 @@ services:
             KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
             # SSL properties
             KAFKA_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
-            KAFKA_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
-            KAFKA_SSL_KEY_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_KEYSTORE_PASSWORD: keystoreTKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_KEY_PASSWORD: keystoreTKtPspFDZ2CYz3EluZMha24Drp
             KAFKA_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
-            KAFKA_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            KAFKA_SSL_TRUSTSTORE_PASSWORD: truststroreXa6DlDATAOHLTaIOcbRGZdpEYOx0
             KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+            KAFKA_SSL_CLIENT_AUTH: "required"
             CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
         volumes:
             - ./secrets:/etc/kafka/secrets
@@ -191,11 +192,12 @@ services:
             KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
             # SSL properties
             KAFKA_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
-            KAFKA_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
-            KAFKA_SSL_KEY_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_KEYSTORE_PASSWORD: keystoreTKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_SSL_KEY_PASSWORD: keystoreTKtPspFDZ2CYz3EluZMha24Drp
             KAFKA_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
-            KAFKA_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            KAFKA_SSL_TRUSTSTORE_PASSWORD: truststroreXa6DlDATAOHLTaIOcbRGZdpEYOx0
             KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+            KAFKA_SSL_CLIENT_AUTH: "required"
             CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
         volumes:
             - ./secrets:/etc/kafka/secrets
@@ -214,9 +216,9 @@ services:
             SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "broker-1:29092,broker-2:29092,broker-3:29092"
             SCHEMA_REGISTRY_KAFKASTORE_SECURITY_PROTOCOL: SSL
             SCHEMA_REGISTRY_KAFKASTORE_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
-            SCHEMA_REGISTRY_KAFKASTORE_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            SCHEMA_REGISTRY_KAFKASTORE_SSL_TRUSTSTORE_PASSWORD: truststroreXa6DlDATAOHLTaIOcbRGZdpEYOx0
             SCHEMA_REGISTRY_KAFKASTORE_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
-            SCHEMA_REGISTRY_KAFKASTORE_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            SCHEMA_REGISTRY_KAFKASTORE_SSL_KEYSTORE_PASSWORD: keystoreTKtPspFDZ2CYz3EluZMha24Drp
             SCHEMA_REGISTRY_KAFKASTORE_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
 
         volumes:
@@ -251,9 +253,9 @@ services:
 
             # SSL Truststore & Keystore configuration
             CONNECT_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
-            CONNECT_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            CONNECT_SSL_TRUSTSTORE_PASSWORD: truststroreXa6DlDATAOHLTaIOcbRGZdpEYOx0
             CONNECT_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
-            CONNECT_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            CONNECT_SSL_KEYSTORE_PASSWORD: keystoreTKtPspFDZ2CYz3EluZMha24Drp
 
             # Disable Hostname verification for the internal Docker network
             CONNECT_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
@@ -261,16 +263,16 @@ services:
             # Producer and Consumer specific SSL settings (required for internal topics)
             CONNECT_PRODUCER_SECURITY_PROTOCOL: SSL
             CONNECT_PRODUCER_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
-            CONNECT_PRODUCER_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            CONNECT_PRODUCER_SSL_TRUSTSTORE_PASSWORD: truststroreXa6DlDATAOHLTaIOcbRGZdpEYOx0
             CONNECT_PRODUCER_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
-            CONNECT_PRODUCER_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            CONNECT_PRODUCER_SSL_KEYSTORE_PASSWORD: keystoreTKtPspFDZ2CYz3EluZMha24Drp
             CONNECT_PRODUCER_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
 
             CONNECT_CONSUMER_SECURITY_PROTOCOL: SSL
             CONNECT_CONSUMER_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
-            CONNECT_CONSUMER_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            CONNECT_CONSUMER_SSL_TRUSTSTORE_PASSWORD: truststroreXa6DlDATAOHLTaIOcbRGZdpEYOx0
             CONNECT_CONSUMER_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
-            CONNECT_CONSUMER_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            CONNECT_CONSUMER_SSL_KEYSTORE_PASSWORD: keystoreTKtPspFDZ2CYz3EluZMha24Drp
             CONNECT_CONSUMER_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
         volumes:
             - ./secrets:/etc/kafka/secrets
@@ -294,9 +296,9 @@ services:
             # SSL Configuration
             KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: SSL
             KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.server.truststore.jks
-            KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_PASSWORD: a6DlDATAOHLTaIOcbRGZdpEYOx0
+            KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_PASSWORD: truststroreXa6DlDATAOHLTaIOcbRGZdpEYOx0
             KAFKA_CLUSTERS_0_PROPERTIES_SSL_KEYSTORE_LOCATION: /etc/kafka/secrets/kafka.server.keystore.jks
-            KAFKA_CLUSTERS_0_PROPERTIES_SSL_KEYSTORE_PASSWORD: TKtPspFDZ2CYz3EluZMha24Drp
+            KAFKA_CLUSTERS_0_PROPERTIES_SSL_KEYSTORE_PASSWORD: keystoreTKtPspFDZ2CYz3EluZMha24Drp
             # Disable endpoint identification for internal Docker network
             KAFKA_CLUSTERS_0_PROPERTIES_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
 
