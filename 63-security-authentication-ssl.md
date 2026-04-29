@@ -30,10 +30,11 @@
 
 ## ساخت keystore برای کلاینت
 
-### مرحله اول: ساخت keystore
+### مرحله اول: ساخت keystore (اجرا در کلاینت)
 
 ```sh
-cd secrets-client
+mkdir -p ~/Desktop/workspace/kafka/secrets/client
+cd ~/Desktop/workspace/kafka/secrets/client
 
 export CLIENT_PASS=clinetOLPrcS2pLLeN8WJmr1EVmEFCc
 
@@ -42,9 +43,7 @@ keytool -genkeypair -keystore kafka.client.keystore.jks -keyalg RSA -keysize 204
 
 نکته: مقدار CN همان هویت این کلاینت خواهد بود. چیزی شبه به نام کاربری کاربر.
 
-### مرحله دوم:
-
-ساخت CSR جهت ارسال به CA
+### مرحله دوم: ساخت CSR جهت ارسال به CA (اجرا در کلاینت)
 
 ```sh
 keytool -keystore kafka.client.keystore.jks -certreq -alias price-feed-client -file client-cert-sign-request -storepass $CLIENT_PASS -keypass $CLIENT_PASS
@@ -52,46 +51,48 @@ keytool -keystore kafka.client.keystore.jks -certreq -alias price-feed-client -f
 
 فایل تولید شده در این مرحله،‌ میبایست به CA ارسال شود که در نهایت CA گواهینامه امضا شده نهایی را به ما برگرداند.
 
-### مرحله سوم:
+### مرحله سوم: (اجرا در CA)
 
 این مرحله، در حقیقت در CA انجام میشود و درصورتیکه در دسترس خودتان است، انجام دهید.
 
 با فرض بر اینکه شما مطابق این آموزش، پیش رفته اید، فایل های CA در پوشه ای مجاور همین پوشه قرار دارد.
 
 ```sh
-cp ./client-cert-sign-request ../secrets
-cd ../secrets
+cp ~/Desktop/workspace/kafka/secrets/client/client-cert-sign-request ~/Desktop/workspace/kafka/secrets/ca
+cd ~/Desktop/workspace/kafka/secrets/ca
 
 
 CA_PASSWORD=caRstSWx9LvFSs3cjnBVkk1UhMyQQ
 #و برای امضای گواهینامه
 openssl x509 -req -CA ca-cert -CAkey ca-key -in client-cert-sign-request -out client-cert-signed -days 3650 -CAcreateserial -passin pass:$CA_PASSWORD
-
-mv client-cert-signed ../secrets-client
-cd ../secrets-client
 ```
 
 توجه: زمانیکه شما از CA شبکه استفاده میکنید فایل client-cert-signed توسط آنها برای شما ارسال خواهد شد.
 
-### مرحله چهارم:
+### مرحله چهارم: (اجرا در کلاینت)
 
 باید کلید عمومی CA در keystore اضافه شود:
 
 ```sh
+cp ~/Desktop/workspace/kafka/secrets/ca/ca-cert ~/Desktop/workspace/kafka/secrets/client
+cd ~/Desktop/workspace/kafka/secrets/client
+
 keytool -importcert -keystore kafka.client.keystore.jks -alias CARoot -file ca-cert -storepass $CLIENT_PASS -keypass $CLIENT_PASS -noprompt
 ```
 
-### مرحله پنجم:
+### مرحله پنجم: (اجرا در کلاینت)
 
 گواهینامه امضا شده در مرحله سوم نیز باید به keystore اضافه شود.
 
 ```sh
+cp ~/Desktop/workspace/kafka/secrets/ca/client-cert-signed ~/Desktop/workspace/kafka/secrets/client
+
 keytool -importcert -keystore kafka.client.keystore.jks -alias price-feed-client -file client-cert-signed -storepass $CLIENT_PASS -keypass $CLIENT_PASS -noprompt
 ```
 
 دقت کنید که alias در این مرحله باید مطابق مقدار تنظیم شده در مرحله ۲ باشد.
 
-### مرحله ششم: تنظیم سرور کافکا
+### مرحله ششم: تنظیم سرور کافکا (اجرا در سرور کافکا)
 
 در سرور کافکا فایل server.properties را باز کنید و تنظیم زیر را اضافه کنید.
 
@@ -101,17 +102,19 @@ keytool -importcert -keystore kafka.client.keystore.jks -alias price-feed-client
 ssl.client.auth=required
 ```
 
-### مرحله هفتم: تنظیمات کلاینت
+سپس سرویس کافکا را ری استارت نمایید.
+
+### مرحله هفتم: تنظیمات کلاینت (اجرا در کلاینت)
 
 در این مرحله تنظیمات لازم برای ارتباط کلاینت به سرور به کمک احرازهویت با گواهینامه انجام میشود:
 
 ```sh
 tee client.auth.properties <<EOF
 security.protocol=SSL
-ssl.truststore.location=/Users/sam/Desktop/workspace/kafka/secrets-client/kafka.client.truststore.jks
+ssl.truststore.location=/Users/sam/Desktop/workspace/kafka/secrets/client/kafka.client.truststore.jks
 ssl.truststore.password=clinetOLPrcS2pLLeN8WJmr1EVmEFCc
 
-ssl.keystore.location=/Users/sam/Desktop/workspace/kafka/secrets-client/kafka.client.keystore.jks
+ssl.keystore.location=/Users/sam/Desktop/workspace/kafka/secrets/client/kafka.client.keystore.jks
 ssl.keystore.password=clinetOLPrcS2pLLeN8WJmr1EVmEFCc
 ssl.key.password=clinetOLPrcS2pLLeN8WJmr1EVmEFCc
 EOF
