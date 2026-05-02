@@ -29,12 +29,13 @@ keytool -importcert -keystore kafka.client.keystore.jks -alias price-feed-client
 
 # 6. config kafka server
 # 7. generate client properties
-touch client.auth.properties
-echo security.protocol=SSL > client.auth.properties
-echo ssl.truststore.location=./kafka.client.truststore.jks >> client.auth.properties
-echo ssl.truststore.password=$CLIENT_PASS >> client.auth.properties
-echo ssl.keystore.location=./kafka.client.keystore.jks >> client.auth.properties
-echo ssl.keystore.password=$CLIENT_PASS >> client.auth.properties
-echo ssl.key.password=$CLIENT_PASS >> client.auth.properties
+tee client.auth.properties <<EOF
+security.protocol=SSL
+ssl.truststore.location=./kafka.client.truststore.jks
+ssl.truststore.password=$CLIENT_PASS
+ssl.keystore.location=./kafka.client.keystore.jks
+ssl.keystore.password=$CLIENT_PASS
+ssl.key.password=$CLIENT_PASS
+EOF
 
 echo Client SSL authentication files generated.

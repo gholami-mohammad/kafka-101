@@ -61,10 +61,11 @@ cp /etc/kafka/secrets/ca/ca-cert /etc/kafka/secrets/client/ca-cert
 keytool -importcert -keystore kafka.client.truststore.jks -alias CARoot -file ca-cert -storepass $CLIENT_PASS -keypass $CLIENT_PASS -noprompt
 
 # 10. create client properties
-touch client.properties
-echo security.protocol=SSL > client.properties
-echo ssl.truststore.location=./kafka.client.truststore.jks >> client.properties
-echo ssl.truststore.password=$CLIENT_PASS >> client.properties
+tee client.properties <<EOF
+security.protocol=SSL
+ssl.truststore.location=./kafka.client.truststore.jks
+ssl.truststore.password=$CLIENT_PASS
+EOF
 
 # 11. Cleanup and Permissions
 # chmod 644 /etc/kafka/secrets/server/kafka.server.keystore.jks 

@@ -59,7 +59,7 @@ listener.name.controller.plain.sasl.jaas.config=org.apache.kafka.common.security
     user_admin="admin-secret";
 ```
 
-- تنظیم inter.broker.listener.name را کامنت کنید.
+- دقت کنید که از تنظیم های security.inter.broker.protocol و inter.broker.listener.name فقط یک مورد موجود باشد.
 
 پس از اعمال تغییرات، سرور کافکا را ری استارت کنید و در صورتیکه با موفقیت انجام شد به مرحله بعد بروید.
 
