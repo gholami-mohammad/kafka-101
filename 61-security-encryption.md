@@ -122,7 +122,7 @@ keytool -importcert -keystore kafka.server.keystore.jks -alias kafka-broker -fil
 
 ### مرحله هشتم: تنظیمات سرور کافکا (اجرا در سرور کافکا)
 
-برای فعال سازی رمزنگاری ارتباط، تغییرات زیر را در فایل server.propertis و broker.properties اعمال کنید:
+برای فعال سازی رمزنگاری ارتباط، تغییرات زیر را در فایل server.properties و broker.properties اعمال کنید:
 
 ```conf
 listeners=SSL://0.0.0.0:29092 # ادرس را میتوان مطابق نیاز تغییر داد.

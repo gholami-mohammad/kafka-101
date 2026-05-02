@@ -17,5 +17,7 @@
     - [Authentication](./62-security-authentication.md)
         - [SSL Authentication](./63-security-authentication-ssl.md)
         - [SASL Authentication](./64-security-authentication-sasl.md)
-            - [SASL GSSAPI - Kerberos](./65-security-authentication-sasl-gssapi.md)
+            - [SASL PLAIN](./65-security-authentication-sasl-pain.md)
+            - [SASL SSL](./66-security-authentication-sasl-ssl.md)
+            - [SASL GSSAPI - Kerberos]()
     - [Authorization](./69-security-authorization.md)
