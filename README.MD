@@ -16,4 +16,6 @@
     - [Encryptio](./61-security-encryption.md)
     - [Authentication](./62-security-authentication.md)
         - [SSL Authentication](./63-security-authentication-ssl.md)
-    - [Authorization](./66-security-authorization.md)
+        - [SASL Authentication](./64-security-authentication-sasl.md)
+            - [SASL GSSAPI - Kerberos](./65-security-authentication-sasl-gssapi.md)
+    - [Authorization](./69-security-authorization.md)

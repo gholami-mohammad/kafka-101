@@ -4,7 +4,7 @@
 
 - [ رمزنگاری - Encryption](./61-security-encryption.md)
 - [ احراز هویت - Authentication](./62-security-authentication.md)
-- [تعیین سطح دسترسی به منابع - Authorization](./66-security-authorization.md)
+- [تعیین سطح دسترسی به منابع - Authorization](./69-security-authorization.md)
 
 **بسیار مهم:**
 
