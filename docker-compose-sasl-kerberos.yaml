@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+    kdc:
+        image: gcavalcante8808/krb5-server
+        container_name: kerberos-kdc
+        environment:
+            - KRB5_REALM=TIBOBIT.COM
+            - KRB5_KDC=kdc.tibobit.com
+            - KRB5_PASS=masterpassword
+        ports:
+            - "88:88/tcp"
+            - "88:88/udp"
+            - "464:464/tcp"
+            - "464:464/udp"
+            - "749:749/tcp"
+        restart: unless-stopped

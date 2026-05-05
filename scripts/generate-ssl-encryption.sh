@@ -31,14 +31,19 @@ cd /etc/kafka/secrets/server
 keytool -genkeypair -keystore kafka.server.keystore.jks -keyalg RSA -keysize 2048 -alias kafka-broker -validity 3650 -storepass $KEYSTORE_PASSWORD -keypass $KEYSTORE_PASSWORD -storetype pkcs12 -dname "CN=localhost" -ext SAN=DNS:broker-1,DNS:broker-2,DNS:broker-3,DNS:controller-1,DNS:controller-2,DNS:localhost,IP:127.0.0.1
 
 # 4. Create Certificate Signing Request (CSR)
-keytool -keystore kafka.server.keystore.jks -certreq -alias kafka-broker -file server-cert-sign-request -storepass $KEYSTORE_PASSWORD -keypass $KEYSTORE_PASSWORD
+keytool -keystore kafka.server.keystore.jks -certreq -alias kafka-broker -file server-cert-sign-request -storepass $KEYSTORE_PASSWORD -keypass $KEYSTORE_PASSWORD -ext SAN=DNS:broker-1,DNS:broker-2,DNS:broker-3,DNS:controller-1,DNS:controller-2,DNS:localhost,IP:127.0.0.1
 
 # 5. Sign the Certificate with the CA
 cp /etc/kafka/secrets/server/server-cert-sign-request /etc/kafka/secrets/ca
 
 cd /etc/kafka/secrets/ca
 
-openssl x509 -req -CA ca-cert -CAkey ca-key -in server-cert-sign-request -out cert-signed -days 3650 -CAcreateserial -passin pass:$CA_PASSWORD
+tee san.ext <<EOF
+[ v3_req ]
+subjectAltName = DNS:broker-1,DNS:broker-2,DNS:broker-3,DNS:controller-1,DNS:controller-2,DNS:localhost,IP:127.0.0.1
+EOF
+
+openssl x509 -req -CA ca-cert -CAkey ca-key -in server-cert-sign-request -out cert-signed -days 3650 -CAcreateserial -passin pass:$CA_PASSWORD -extfile /etc/kafka/secrets/ca/san.ext -extensions v3_req
 
 # 6. Import CA into Keystore
 cp /etc/kafka/secrets/ca/ca-cert /etc/kafka/secrets/server
