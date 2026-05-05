@@ -133,3 +133,12 @@ kafka-console-consumer --bootstrap-server localhost:9092 --topic some-topic --fr
 # producer
 kafka-console-producer --bootstrap-server localhost:9092 --topic some-topic --command-config ./client.auth.properties
 ```
+
+### تنظیمات در سرور اوبونتو
+
+درصورتیکه مطابق آموزش [نصب و راه اندازی در سرور اوبونتو](./02-installation.md#linux-ubuntudebian) پیش رفته اید، میتوانید به کمک [این اسکریپت](./kafka-ubuntu-ssl.sh)، مطابق مراحل فوق، گواهینامه ها را ایجاد کنید.
+
+```sh
+chmod +x kafka-ubuntu-ssl.sh
+./kafka-ubuntu-ssl.sh
+```
