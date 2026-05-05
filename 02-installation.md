@@ -37,29 +37,50 @@ Or manually run it:
     wget https://www.apache.org/dyn/closer.lua/kafka/4.2.0/kafka_2.13-4.2.0.tgz?action=download
     ```
 
+1. Create kafka user
+
+    ```sh
+    sudo useradd --system --no-create-home --shell /bin/false kafka
+    ```
+
 1. Extract the file and go to the extracted directory.
 
     ```sh
-    mkdir ~/kafka
+    cd ~
     tar -xvf kafka_2.13-4.2.0.tgz
-    mv kafka_2.13-4.2.0 ~/kafka
-    cd ~/kafka/kafka_2.13-4.2.0
+    sudo mv kafka_2.13-4.2.0 /opt/kafka
+    chown -R kafka:kafka /opt/kafka
+    cd /opt/kafka/
     ```
 
 1. Setting Log directory:
-    - Create log directory: `mkdir ~/kafka/kraft-combined-logs`
-    - Open server properties file and set `log.dirs` to `~/kafka/kraft-combined-logs`.
+    - Create log directory:
+        ```sh
+        sudo mkdir -p /var/kafka/kraft-combined-logs
+        sudo chown -R kafka:kafka /var/kafka
+        ```
+    - Open server properties file and set `log.dirs` to `/var/kafka/kraft-combined-logs`.
+
+1. Adding kafka bin to PATH:
+    - if using bash:
+        ```
+        echo 'export PATH="$PATH:/opt/kafka/bin"' >> ~/.bashrc
+        ```
+    - if using zsh:
+        ```
+        echo 'export PATH="$PATH:/opt/kafka/bin"' >> ~/.zshrc
+        ```
 
 1. Generate ID and format storage
 
     ```sh
-    ./bin/kafka-storage.sh format --standalone -t `./bin/kafka-storage.sh random-uuid` -c ./config/server.properties
+    kafka-storage.sh format --standalone -t `kafka-storage.sh random-uuid` -c /opt/kafka/config/server.properties
     ```
 
 1. Start server:
 
     ```sh
-    ./bin/kafka-server-start.sh config/server.properties
+    kafka-server-start.sh /opt/kafka/config/server.properties
     ```
 
     **NOTE: KEEP THIS TERMINAL OPEN. Otherwise, Kafka server will be stopped.**
@@ -67,17 +88,48 @@ Or manually run it:
 1. Config installation:
 
     ```sh
-    ./bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic testing
+    kafka-topics.sh --bootstrap-server localhost:9092 --create --topic testing
     ```
 
     You should see `Created topic testing.` message.
 
-1. Adding kafka bin to PATH:
-    - if using bash:
-        ```
-        echo 'export PATH="$PATH:~/kafka/kafka_2.13-4.2.0/bin"' >> ~/.bashrc
-        ```
-    - if using zsh:
-        ```
-        echo 'export PATH="$PATH:~/kafka/kafka_2.13-4.2.0/bin"' >> ~/.zshrc
-        ```
+### تنظیم به عنوان سرویس
+
+درصورتیکه تمایل داشته باشید که کافکا به عنوان یک سرویس systemd در بکگراند اجرا شود، می توانید این بخش را نیز مطالعه کنید.
+
+```sh
+sudo tee /etc/systemd/system/kafka.service <<EOF
+[Unit]
+Description=Apache Kafka
+After=network.target
+
+[Service]
+Type=simple
+User=kafka
+Group=kafka
+ExecStart=/opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/server.properties
+ExecStop=/opt/kafka/bin/kafka-server-stop.sh
+Restart=on-abnormal
+
+# Security Hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/kafka /var/kafka
+LimitNOFILE=100000
+
+[Install]
+WantedBy=multi-user.target
+
+EOF
+
+sudo systemctl enable kafka.service
+sudo systemctl start kafka.service
+sudo systemctl status kafka.service
+```
+
+در صورت بروز خطا، میتوانید جزییات لاگ سرویس را با دستور زیر مشاهده کنید:
+
+```sh
+sudo journalctl -u kafka.service -f
+```
