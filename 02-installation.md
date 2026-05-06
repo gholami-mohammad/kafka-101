@@ -49,7 +49,7 @@ Or manually run it:
     cd ~
     tar -xvf kafka_2.13-4.2.0.tgz
     sudo mv kafka_2.13-4.2.0 /opt/kafka
-    chown -R kafka:kafka /opt/kafka
+    sudo chown -R kafka:kafka /opt/kafka
     cd /opt/kafka/
     ```
 
@@ -57,7 +57,6 @@ Or manually run it:
     - Create log directory:
         ```sh
         sudo mkdir -p /var/kafka/kraft-combined-logs
-        sudo chown -R kafka:kafka /var/kafka
         ```
     - Open server properties file and set `log.dirs` to `/var/kafka/kraft-combined-logs`.
 
@@ -65,16 +64,21 @@ Or manually run it:
     - if using bash:
         ```
         echo 'export PATH="$PATH:/opt/kafka/bin"' >> ~/.bashrc
+        source ~/.bashrc
         ```
     - if using zsh:
         ```
         echo 'export PATH="$PATH:/opt/kafka/bin"' >> ~/.zshrc
+        source ~/.bashrc
         ```
 
 1. Generate ID and format storage
 
     ```sh
-    kafka-storage.sh format --standalone -t `kafka-storage.sh random-uuid` -c /opt/kafka/config/server.properties
+    CLUSTER_ID=$(/opt/kafka/bin/kafka-storage.sh random-uuid)
+    sudo /opt/kafka/bin/kafka-storage.sh format --standalone -t $CLUSTER_ID -c /opt/kafka/config/server.properties
+
+    sudo chown -R kafka:kafka /var/kafka
     ```
 
 1. Start server:
