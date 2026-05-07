@@ -39,6 +39,61 @@
 - **ساخت Application:**
     - یک Application بسازید و Provider مرحله قبل را به آن متصل کنید.
 
+**توجه خیلی مهم:**
+
+زمانی که سرور Authentik را اجرا میکنید و پورت https را فعال میکنید، پیش فرض با استفاده از یک self signed certification اجرا میشود.
+
+حال، اگر گواهینامه معتبر دارید، از بخش https://192.168.1.26:6443/if/admin/#/crypto/certificates این گواهینامه را ایمپورت کنید. در SAN این گواهینامه حتما باید IP:192.168.1.26 یا همان آدرس سرور آثنتیک موجود باشد.
+
+درصورتیکه گواهینامه معتبر ندارید، با استفاده از دستورات زیر یک گواهینامه مناسب تولید کنید:
+
+```sh
+mkdir -p /tmp/authentik-certs
+cd /tmp/authentik-certs
+
+tee authentik-cert.conf <<EOF
+[req]
+distinguished_name = req_distinguished_name
+x509_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+CN = authentik.local
+
+[v3_req]
+keyUsage = critical, digitalSignature, keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+IP.1 = 192.168.1.26
+DNS.1 = authentik.local
+DNS.2 = localhost
+EOF
+
+openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+  -keyout authentik-key.pem \
+  -out authentik-cert.pem \
+  -config authentik-cert.conf
+```
+
+سپس این گواهینامه را از بخش https://192.168.1.26:6443/if/admin/#/crypto/certificates ایمپورت کنید.
+
+سپس از بخش تنظیمات برند،https://192.168.1.26:6443/if/admin/#/core/brands، برند خود را ویرایش کنید و از بخش Other Global Settings در قسمت Web certification، همین سرتیفیکیت را انتخاب کنید. سپس سرویس آثنتیک را ری استارت نمایید.
+
+پس از اینکار، گواهینامه سرور آثنتیک را باید در تراست استور کافکا ایمپورت کنید.
+
+سپس فایل را از سرور آثنتیک به سرور کافکا منتقل کنید و این دستورات را بزنید(فرض بر این است که فایل به پوشه tmp سرور کافکا کپی شده است)
+
+با این دستور، شما گواهینامه سرور آثنتیک را در تراست استور کافکا معتبر میکنید و باعث میشود که در زمان درخواست برای ارتباط با سرور آثنتیک به مشکل گواهینامه نامعتبر نخورید.
+
+```sh
+sudo cp /tmp/authentik-certs/authentik-cert.pem /var/kafka/secrets/server
+sudo chown -R kafka:kafka /var/kafka
+
+sudo keytool -import -alias authentik-cert -file /var/kafka/secrets/server/authentik-cert.pem -keystore /var/kafka/secrets/server/kafka.server.truststore.jks -storepass truststroreXa6DlDATAOHLTaIOcbRGZdpEYOx0 -noprompt
+```
+
 ---
 
 ### بخش سوم: تنظیمات کافکا
@@ -70,23 +125,29 @@ sasl.mechanism.controller.protocol=OAUTHBEARER
 # JWT settings
 listener.name.broker.oauthbearer.sasl.server.callback.handler.class=org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler
 listener.name.broker.oauthbearer.sasl.login.callback.handler.class=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginCallbackHandler
-listener.name.broker.oauthbearer.sasl.oauthbearer.token.endpoint.url=http://192.168.1.26:9000/application/o/token/
-listener.name.broker.oauthbearer.sasl.oauthbearer.jwks.endpoint.url=http://192.168.1.26:9000/application/o/kafka/jwks/
+listener.name.broker.oauthbearer.sasl.oauthbearer.token.endpoint.url=https://192.168.1.26:6443/application/o/token/
+listener.name.broker.oauthbearer.sasl.oauthbearer.jwks.endpoint.url=https://192.168.1.26:6443/application/o/kafka/jwks/
 listener.name.broker.oauthbearer.sasl.oauthbearer.expected.audience=dKNm1s2X7Ka1R4ERD7lLZRzlNXTwsaDxN1WEfHuu
 listener.name.broker.oauthbearer.sasl.oauthbearer.client.credentials.client.id=dKNm1s2X7Ka1R4ERD7lLZRzlNXTwsaDxN1WEfHuu
 listener.name.broker.oauthbearer.sasl.oauthbearer.client.credentials.client.secret=2h8B1PKXTRVYcB3O5iP9xIN3Y4WOV4upYhFKnSboYKSfGP8Phka2txVoXHfjNpdVuY4RotUnci0ZKlDU87j2ujFTagRnt35ypoa6o9hRLOQqXwRSZg3l5sRgd0H4xRF7
 listener.name.broker.oauthbearer.sasl.oauthbearer.scope="openid profile email"
-listener.name.broker.oauthbearer.sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;
+listener.name.broker.oauthbearer.sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required \
+  ssl.truststore.location="/var/kafka/secrets/server/kafka.server.truststore.jks" \
+  ssl.truststore.password="truststroreXa6DlDATAOHLTaIOcbRGZdpEYOx0" \
+  ssl.endpoint.identification.algorithm="";
 
 listener.name.controller.oauthbearer.sasl.server.callback.handler.class=org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler
 listener.name.controller.oauthbearer.sasl.login.callback.handler.class=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginCallbackHandler
-listener.name.controller.oauthbearer.sasl.oauthbearer.token.endpoint.url=http://192.168.1.26:9000/application/o/token/
-listener.name.controller.oauthbearer.sasl.oauthbearer.jwks.endpoint.url=http://192.168.1.26:9000/application/o/kafka/jwks/
+listener.name.controller.oauthbearer.sasl.oauthbearer.token.endpoint.url=https://192.168.1.26:6443/application/o/token/
+listener.name.controller.oauthbearer.sasl.oauthbearer.jwks.endpoint.url=https://192.168.1.26:6443/application/o/kafka/jwks/
 listener.name.controller.oauthbearer.sasl.oauthbearer.expected.audience=dKNm1s2X7Ka1R4ERD7lLZRzlNXTwsaDxN1WEfHuu
 listener.name.controller.oauthbearer.sasl.oauthbearer.client.credentials.client.id=dKNm1s2X7Ka1R4ERD7lLZRzlNXTwsaDxN1WEfHuu
 listener.name.controller.oauthbearer.sasl.oauthbearer.client.credentials.client.secret=2h8B1PKXTRVYcB3O5iP9xIN3Y4WOV4upYhFKnSboYKSfGP8Phka2txVoXHfjNpdVuY4RotUnci0ZKlDU87j2ujFTagRnt35ypoa6o9hRLOQqXwRSZg3l5sRgd0H4xRF7
 listener.name.controller.oauthbearer.sasl.oauthbearer.scope="openid profile email"
-listener.name.controller.oauthbearer.sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;
+listener.name.controller.oauthbearer.sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required \
+  ssl.truststore.location="/var/kafka/secrets/server/kafka.server.truststore.jks" \
+  ssl.truststore.password="truststroreXa6DlDATAOHLTaIOcbRGZdpEYOx0" \
+  ssl.endpoint.identification.algorithm="";
 ```
 
 سپس تنظیمات سرویس کافکا را مطابق زیر بروز رسانی کنید:
@@ -102,7 +163,7 @@ Type=simple
 User=kafka
 Group=kafka
 
-Environment="KAFKA_OPTS=-Dorg.apache.kafka.sasl.oauthbearer.allowed.urls=http://192.168.1.26:9000/application/o/kafka/jwks/,http://192.168.1.26:9000/application/o/token/"
+Environment="KAFKA_OPTS=-Dorg.apache.kafka.sasl.oauthbearer.allowed.urls=https://192.168.1.26:6443/application/o/kafka/jwks/,https://192.168.1.26:6443/application/o/token/"
 ExecStart=/opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/server.properties
 ExecStop=/opt/kafka/bin/kafka-server-stop.sh
 Restart=on-abnormal
@@ -150,8 +211,8 @@ sasl.oauthbearer.client.credentials.client.secret=2h8B1PKXTRVYcB3O5iP9xIN3Y4WOV4
 sasl.oauthbearer.scope="openid profile email"
 sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;
 sasl.login.callback.handler.class=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginCallbackHandler
-sasl.oauthbearer.token.endpoint.url=http://192.168.1.26:9000/application/o/token/
-sasl.oauthbearer.jwks.endpoint.url=http://192.168.1.26:9000/application/o/kafka/jwks/
+sasl.oauthbearer.token.endpoint.url=https://192.168.1.26:6443/application/o/token/
+sasl.oauthbearer.jwks.endpoint.url=https://192.168.1.26:6443/application/o/kafka/jwks/
 sasl.oauthbearer.expected.audience=dKNm1s2X7Ka1R4ERD7lLZRzlNXTwsaDxN1WEfHuu
 EOF
 ```
@@ -161,30 +222,12 @@ EOF
 سپس با استفاده از دستورات زیر میتوانید عملکرد کلاینت خود را بررسی کنید:
 
 ```sh
-KAFKA_OPTS="-Dorg.apache.kafka.sasl.oauthbearer.allowed.urls=http://192.168.1.26:9000/application/o/kafka/jwks/,http://192.168.1.26:9000/application/o/token/" sudo kafka-topics.sh --bootstrap-server 192.168.150.100:9092 --command-config ./client.sasl_oauthbearer.properties --create --topic some-topic
+KAFKA_OPTS="-Dorg.apache.kafka.sasl.oauthbearer.allowed.urls=https://192.168.1.26:6443/application/o/kafka/jwks/,https://192.168.1.26:6443/application/o/token/" sudo kafka-topics.sh --bootstrap-server 192.168.150.100:9092 --command-config ./client.sasl_oauthbearer.properties --create --topic some-topic
 
-KAFKA_OPTS="-Dorg.apache.kafka.sasl.oauthbearer.allowed.urls=http://192.168.1.26:9000/application/o/kafka/jwks/,http://192.168.1.26:9000/application/o/token/" kafka-console-producer.sh --bootstrap-server 192.168.150.100:9092 --command-config ./client.sasl_oauthbearer.properties --topic some-topic
+KAFKA_OPTS="-Dorg.apache.kafka.sasl.oauthbearer.allowed.urls=https://192.168.1.26:6443/application/o/kafka/jwks/,https://192.168.1.26:6443/application/o/token/" kafka-console-producer.sh --bootstrap-server 192.168.150.100:9092 --command-config ./client.sasl_oauthbearer.properties --topic some-topic
 ```
 
 ### نکات حیاتی یک متخصص:
 
 1. **امنیت شبکه:** استفاده از `SASL_PLAINTEXT` یعنی توکن شما در شبکه به صورت متن باز (Clear Text) منتقل می‌شود که خطر سرقت توکن (Token Hijacking) دارد. در محیط پروداکشن حتماً از `SASL_SSL` استفاده کنید تا ترافیک TLS/SSL رمزنگاری شود.
 2. **همگام‌سازی زمان (NTP):** چون اعتبارسنجی JWT بر اساس زمان است (فیلدهای `exp` و `nbf`)، حتماً سرورهای کافکا و سرور Authentik باید از نظر زمانی سینک باشند (با سرویس NTP). در غیر این صورت توکن‌ها بی‌دلیل نامعتبر شناخته می‌شوند.
-
----
-
----
-
----
-
----
-
-```sh
-openssl s_client -showcerts -connect 192.168.1.26:6443 </dev/null 2>/dev/null | openssl x509 -outform PEM > /tmp/authentik.pem
-
-sudo mv /tmp/authentik.pem /var/kafka/secrets/server
-sudo chown -R kafka:kafka /var/kafka
-
-sudo keytool -import -alias authentik-cert -file /var/kafka/secrets/server/authentik.pem -keystore /var/kafka/secrets/server/kafka.server.truststore.jks -storepass truststroreXa6DlDATAOHLTaIOcbRGZdpEYOx0 -noprompt
-
-```
