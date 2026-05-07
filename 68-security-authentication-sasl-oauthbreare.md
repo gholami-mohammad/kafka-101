@@ -73,14 +73,20 @@ listener.name.broker.oauthbearer.sasl.login.callback.handler.class=org.apache.ka
 listener.name.broker.oauthbearer.sasl.oauthbearer.token.endpoint.url=http://192.168.1.26:9000/application/o/token/
 listener.name.broker.oauthbearer.sasl.oauthbearer.jwks.endpoint.url=http://192.168.1.26:9000/application/o/kafka/jwks/
 listener.name.broker.oauthbearer.sasl.oauthbearer.expected.audience=dKNm1s2X7Ka1R4ERD7lLZRzlNXTwsaDxN1WEfHuu
-listener.name.broker.oauthbearer.sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required clientId='dKNm1s2X7Ka1R4ERD7lLZRzlNXTwsaDxN1WEfHuu' clientSecret='2h8B1PKXTRVYcB3O5iP9xIN3Y4WOV4upYhFKnSboYKSfGP8Phka2txVoXHfjNpdVuY4RotUnci0ZKlDU87j2ujFTagRnt35ypoa6o9hRLOQqXwRSZg3l5sRgd0H4xRF7' scope="openid profile email";
+listener.name.broker.oauthbearer.sasl.oauthbearer.client.credentials.client.id=dKNm1s2X7Ka1R4ERD7lLZRzlNXTwsaDxN1WEfHuu
+listener.name.broker.oauthbearer.sasl.oauthbearer.client.credentials.client.secret=2h8B1PKXTRVYcB3O5iP9xIN3Y4WOV4upYhFKnSboYKSfGP8Phka2txVoXHfjNpdVuY4RotUnci0ZKlDU87j2ujFTagRnt35ypoa6o9hRLOQqXwRSZg3l5sRgd0H4xRF7
+listener.name.broker.oauthbearer.sasl.oauthbearer.scope="openid profile email"
+listener.name.broker.oauthbearer.sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;
 
 listener.name.controller.oauthbearer.sasl.server.callback.handler.class=org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler
 listener.name.controller.oauthbearer.sasl.login.callback.handler.class=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginCallbackHandler
 listener.name.controller.oauthbearer.sasl.oauthbearer.token.endpoint.url=http://192.168.1.26:9000/application/o/token/
 listener.name.controller.oauthbearer.sasl.oauthbearer.jwks.endpoint.url=http://192.168.1.26:9000/application/o/kafka/jwks/
 listener.name.controller.oauthbearer.sasl.oauthbearer.expected.audience=dKNm1s2X7Ka1R4ERD7lLZRzlNXTwsaDxN1WEfHuu
-listener.name.controller.oauthbearer.sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required clientId='dKNm1s2X7Ka1R4ERD7lLZRzlNXTwsaDxN1WEfHuu' clientSecret='2h8B1PKXTRVYcB3O5iP9xIN3Y4WOV4upYhFKnSboYKSfGP8Phka2txVoXHfjNpdVuY4RotUnci0ZKlDU87j2ujFTagRnt35ypoa6o9hRLOQqXwRSZg3l5sRgd0H4xRF7' scope="openid profile email";
+listener.name.controller.oauthbearer.sasl.oauthbearer.client.credentials.client.id=dKNm1s2X7Ka1R4ERD7lLZRzlNXTwsaDxN1WEfHuu
+listener.name.controller.oauthbearer.sasl.oauthbearer.client.credentials.client.secret=2h8B1PKXTRVYcB3O5iP9xIN3Y4WOV4upYhFKnSboYKSfGP8Phka2txVoXHfjNpdVuY4RotUnci0ZKlDU87j2ujFTagRnt35ypoa6o9hRLOQqXwRSZg3l5sRgd0H4xRF7
+listener.name.controller.oauthbearer.sasl.oauthbearer.scope="openid profile email"
+listener.name.controller.oauthbearer.sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;
 ```
 
 سپس تنظیمات سرویس کافکا را مطابق زیر بروز رسانی کنید:
