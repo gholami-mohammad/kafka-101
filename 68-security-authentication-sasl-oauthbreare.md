@@ -135,16 +135,14 @@ bootstrap.servers=192.168.150.100:9092
 security.protocol=SASL_SSL
 
 # SSL
-ssl.truststore.location=./client.truststore.jks
+ssl.truststore.location=./kafka.client.truststore.jks
 ssl.truststore.password=clinetOLPrcS2pLLeN8WJmr1EVmEFCc
-
 # SASL
 sasl.mechanism=OAUTHBEARER
-sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required \
-  clientId="dKNm1s2X7Ka1R4ERD7lLZRzlNXTwsaDxN1WEfHuu" \
-  clientSecret="2h8B1PKXTRVYcB3O5iP9xIN3Y4WOV4upYhFKnSboYKSfGP8Phka2txVoXHfjNpdVuY4RotUnci0ZKlDU87j2ujFTagRnt35ypoa6o9hRLOQqXwRSZg3l5sRgd0H4xRF7" \
-  scope="openid profile email";
-
+sasl.oauthbearer.client.credentials.client.id=dKNm1s2X7Ka1R4ERD7lLZRzlNXTwsaDxN1WEfHuu
+sasl.oauthbearer.client.credentials.client.secret=2h8B1PKXTRVYcB3O5iP9xIN3Y4WOV4upYhFKnSboYKSfGP8Phka2txVoXHfjNpdVuY4RotUnci0ZKlDU87j2ujFTagRnt35ypoa6o9hRLOQqXwRSZg3l5sRgd0H4xRF7
+sasl.oauthbearer.scope="openid profile email"
+sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;
 sasl.login.callback.handler.class=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginCallbackHandler
 sasl.oauthbearer.token.endpoint.url=http://192.168.1.26:9000/application/o/token/
 sasl.oauthbearer.jwks.endpoint.url=http://192.168.1.26:9000/application/o/kafka/jwks/
