@@ -50,7 +50,7 @@ func main() {
 
 		fmt.Println(payload)
 
-		_, err = tx.Exec(context.Background(), `INSERT INTO outbox_schema.outbox (id, aggregatetype, aggregateid, type, payload)
+		_, err = tx.Exec(ctx, `INSERT INTO outbox_schema.outbox (id, aggregatetype, aggregateid, type, payload)
 VALUES (
     gen_random_uuid(),
     'order-aggregate',
@@ -59,7 +59,15 @@ VALUES (
     $2::jsonb
 );`, orderID, payload)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "insert query failed: %v\n", err)
+			_ = tx.Rollback(ctx)
+
+			os.Exit(1)
+		}
+
+		_, err = tx.Exec(ctx, "delete from outbox_schema.outbox")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "delete query failed: %v\n", err)
 			_ = tx.Rollback(ctx)
 
 			os.Exit(1)
