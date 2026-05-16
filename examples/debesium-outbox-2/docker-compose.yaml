@@ -5,12 +5,22 @@ services:
         environment:
             POSTGRES_USER: postgres
             POSTGRES_PASSWORD: postgres
-            POSTGRES_DB: orderdb
+            POSTGRES_DB: postgres
         ports:
             - "5432:5432"
-        command: postgres -c wal_level=logical -c max_wal_senders=10 -c max_replication_slots=10
+        command:
+            - postgres
+            - -c
+            - wal_level=logical
+            - -c
+            - max_wal_senders=10
+            - -c
+            - max_replication_slots=10
+            - -c
+            - hba_file=/etc/postgresql/pg_hba.conf
         volumes:
-            # - postgres_data:/var/lib/postgresql/data
+            # - postgres_data_debezium_exm2:/var/lib/postgresql/18/docker
+            - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
             - ./postgres/init:/docker-entrypoint-initdb.d
         healthcheck:
             test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -46,13 +56,16 @@ services:
             timeout: 10s
             retries: 5
             start_period: 30s
+        volumes:
+            - kafka_data_debezium_exm2:/var/lib/kafka/data
 
     connect:
-        image: confluentinc/cp-kafka-connect:latest
         container_name: connect
-        build:
-            dockerfile: connect.Dockerfile
-            context: .
+        image: kafka-connect-with-debezium:latest
+        # image: confluentinc/cp-kafka-connect:latest
+        # build:
+        #     dockerfile: connect.Dockerfile
+        #     context: .
         depends_on:
             kafka:
                 condition: service_healthy
@@ -87,3 +100,7 @@ services:
             KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
             KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: local-connect
             KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://connect:8083
+
+volumes:
+    postgres_data_debezium_exm2:
+    kafka_data_debezium_exm2:
