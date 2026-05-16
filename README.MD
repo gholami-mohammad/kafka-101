@@ -24,4 +24,4 @@
     - [Authorization](./69-security-authorization.md)
 - [Transaction In Action](./70-transaction-in-action.md)
 - [Kafka Logs](./71-logs-and-kafka.md)
-- [Outbox Pattern](./72-outbox-pattern.md)
+- [Outbox Pattern And Debezium](./72-outbox-pattern.md)
