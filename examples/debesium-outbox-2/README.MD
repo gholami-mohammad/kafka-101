@@ -78,6 +78,7 @@ ${topic.prefix}.event.${outbox.aggregatetype}
 
 ```sh
 docker exec -it debezium-postgres psql -U tibobit -d orderdb -c "
+BEGIN;
 INSERT INTO outbox_schema.outbox (id, aggregatetype, aggregateid, type, payload)
 VALUES (
     gen_random_uuid(),
@@ -85,7 +86,20 @@ VALUES (
     'order-123',
     'OrderCreated',
     '{\"id\": 1, \"amount\": \"150.00\", \"base\": \"usdt\", \"quote\": \"btc\"}'::jsonb
-);"
+);
+DELETE FROM outbox_schema.outbox;
+COMMIT;
+"
+
 ```
 
 پس از اجرای این دستور، پیامی به تاپیک `outbox.event.order-aggregate` ارسال خواهد شد که از طریق kafka-ui به راحتی قابل مشاهده است.
+
+**نکته مهم: در دستور sql اگر دقت نمایید، به محض درج رکورد، پاک سازی انجام میشود.
+این کار برای تمیز نگه داشتن این جدول است و دبیزیم چون از لاگ دیتابیس تغذیه میکند، دستور درج را مشاهده و پردازش خواهد کرد.**
+
+در صورت تمایل به تولید حجم بیشتری از دیتا،‌ میتوانید قطعه کد موجود در این مثال را نیز اجرا کنید:
+
+```sh
+go run . -count=100
+```
