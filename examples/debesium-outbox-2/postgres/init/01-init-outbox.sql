@@ -20,7 +20,7 @@ CREATE SCHEMA IF NOT EXISTS outbox_schema;
 
 -- Create outbox table (adjust columns as per your needs)
 CREATE TABLE IF NOT EXISTS outbox_schema.outbox (
-    id              SERIAL PRIMARY KEY,
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     aggregatetype   VARCHAR(255) NOT NULL,
     aggregateid     VARCHAR(255) NOT NULL,
     type            VARCHAR(255) NOT NULL,
@@ -34,6 +34,10 @@ CREATE INDEX IF NOT EXISTS idx_outbox_unprocessed
     ON outbox_schema.outbox (processed, created_at);
 
 ALTER TABLE outbox_schema.outbox REPLICA IDENTITY FULL;
+
+ALTER SCHEMA outbox_schema OWNER TO tibobit;
+ALTER TABLE outbox_schema.outbox OWNER TO tibobit;
+
 
 -- Create publication for the outbox table so Debezium does not need superuser
 -- rights to create a FOR ALL TABLES publication.

@@ -4,6 +4,8 @@
 
 نمونه کد، با گولنگ توسعه داده شده است.
 
+## اجرای سرویس ها
+
 جهت اجرای برنامه مراحل زیر را دنبال کنید:
 
 ```sh
@@ -15,6 +17,8 @@ docker-compose -f docker-compose.yaml up -d
 ```
 
 پس از اینکه کانتینر های لازم اجرا شد، میتوانیم به اجرای برنامه و تنظیمات دبیزیم بپردازیم.
+
+## تنظیمات دبیزیم و کانکتور
 
 ابتدا آدرس http://localhost:8080 را در مرورگر خود باز کنید.
 این آدرس پنل kafka-ui است که در داکر کمپوز ایجاد شده است.
@@ -69,3 +73,19 @@ ${topic.prefix}.event.${outbox.aggregatetype}
 مقدار outbox.aggregatetype مطابق با مقداری است که در جدول outbox در ستون aggregatetype وارد شده باشد.
 
 آنچه در این نوشتار تنظیم شد، یکی از مدل های ترنسفورمر در دبیزیم است. جهت مشاهده سایر انواع و تنظیمات به [مستندات رسمی](https://debezium.io/documentation/reference/3.5/transformations/index.html) آن مراجعه کنید.
+
+## تست عملکرد توسط کد
+
+```sh
+docker exec -it debezium-postgres psql -U tibobit -d orderdb -c "
+INSERT INTO outbox_schema.outbox (id, aggregatetype, aggregateid, type, payload)
+VALUES (
+    gen_random_uuid(),
+    'order-aggregate',
+    'order-123',
+    'OrderCreated',
+    '{\"id\": 1, \"amount\": \"150.00\", \"base\": \"usdt\", \"quote\": \"btc\"}'::jsonb
+);"
+```
+
+پس از اجرای این دستور، پیامی به تاپیک `outbox.event.order-aggregate` ارسال خواهد شد که از طریق kafka-ui به راحتی قابل مشاهده است.
