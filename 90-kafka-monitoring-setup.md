@@ -1,245 +1,216 @@
-# راه‌اندازی مانیتورینگ Kafka با Prometheus ،Kafka Exporter و JMX Exporter
-
-
 <div dir="rtl">
-در این راهنما نحوه راه‌اندازی یک سیستم مانیتورینگ برای **Apache Kafka** با استفاده از ابزارهای زیر توضیح داده می‌شود:
 
-- **Prometheus** برای جمع‌آوری و ذخیره متریک‌ها  
-- **Kafka Exporter** برای دریافت متریک‌های Kafka  
-- **JMX Exporter** برای دریافت متریک‌های داخلی JVM و Kafka  
-- **Grafana (اختیاری)** برای نمایش گرافیکی متریک‌ها  
+# راهنمای مانیتورینگ کافکا با استفاده از پرومتئوس و گرافانا
 
-هدف از این سیستم مانیتورینگ این است که بتوانیم وضعیت Kafka را از نظر موارد زیر مشاهده کنیم:
+در این راهنما مراحل راه‌اندازی یک سیستم مانیتورینگ برای کلاستر کافکا توضیح داده شده است. هدف این است که بتوانیم وضعیت پیام‌ها، مصرف‌کننده‌ها، منابع سرور و سلامت بروکرها را مشاهده و تحلیل کنیم.
 
-- وضعیت Broker ها  
-- تعداد Topic ها و Partition ها  
-- وضعیت Leader ها  
-- Consumer Lag  
-- مصرف حافظه JVM  
-- Garbage Collection  
-- تعداد Thread ها  
-- مصرف CPU و Memory
+## معماری کلی سیستم
 
-این اطلاعات برای **تشخیص سریع مشکلات سیستم** و **پایش سلامت کلاستر Kafka** بسیار مهم هستند.
+معماری مانیتورینگ به شکل زیر است:
 
+کلاستر کافکا → ابزار Kafka Exporter و ابزار JMX Exporter → سامانه Prometheus → سامانه Grafana
+
+در این ساختار ابزارهای exporter متریک‌ها را جمع‌آوری می‌کنند، سامانه پرومتئوس آن‌ها را ذخیره می‌کند و سامانه گرافانا آن‌ها را به‌صورت داشبورد نمایش می‌دهد.
 
 ---
 
-# معماری سیستم مانیتورینگ
+## معرفی اجزای سیستم
 
-در این معماری، متریک‌ها از Kafka استخراج شده و در Prometheus ذخیره می‌شوند.
+### سامانه Prometheus
 
-```
-Kafka Cluster
-   │
-   ├── Kafka Exporter
-   │      (Kafka metrics: topics, partitions, lag)
-   │
-   ├── JMX Exporter
-   │      (JVM metrics: memory, GC, threads)
-   │
-   ▼
-Prometheus
-   (جمع‌آوری و ذخیره متریک‌ها)
-   │
-   ▼
-Grafana
-   (نمایش داشبوردها)
-```
+سامانه پرومتئوس یک سیستم مانیتورینگ و جمع‌آوری متریک است که داده‌ها را به‌صورت time‑series ذخیره می‌کند.
 
-Prometheus به صورت **Pull-Based** کار می‌کند. یعنی خودش به صورت دوره‌ای به سرویس‌ها متصل می‌شود و متریک‌ها را دریافت می‌کند.
+ویژگی‌های مهم:
+
+- جمع‌آوری متریک‌ها از سرویس‌ها
+- ذخیره‌سازی داده‌ها در پایگاه داده زمانی
+- امکان جستجو با زبان کوئری PromQL
+- امکان تعریف هشدار
+
+مدل کاری پرومتئوس از نوع Pull است؛ یعنی خود سامانه پرومتئوس به سرویس‌ها مراجعه می‌کند و متریک‌ها را دریافت می‌کند. این عملیات Scrape نام دارد.
 
 ---
 
-# 1. نصب پیش‌نیازها
+### سامانه Grafana
 
-ابتدا ابزارهای لازم برای دانلود و استخراج فایل‌ها را نصب می‌کنیم.
+سامانه گرافانا برای نمایش داده‌های مانیتورینگ استفاده می‌شود. این ابزار به منابع داده مانند پرومتئوس متصل می‌شود و داشبوردهای گرافیکی می‌سازد.
+
+قابلیت‌های مهم:
+
+- ساخت داشبوردهای گرافیکی
+- نمایش نمودار، Gauge و جدول
+- پشتیبانی از منابع داده مختلف
+- امکان تعریف هشدار
+
+---
+
+### ابزار Kafka Exporter
+
+ابزار Kafka Exporter متریک‌های مربوط به کافکا را جمع‌آوری می‌کند و آن‌ها را در قالبی که پرومتئوس می‌تواند بخواند منتشر می‌کند.
+
+نمونه متریک‌هایی که این ابزار ارائه می‌دهد:
+
+- تعداد بروکرها
+- تعداد تاپیک‌ها
+- تعداد پارتیشن‌ها
+- مقدار Consumer Lag
+
+مفهوم Consumer Lag یکی از مهم‌ترین شاخص‌ها در مانیتورینگ کافکا است.
+
+فرمول آن به شکل زیر است:
+
+آخرین Offset تولید شده − آخرین Offset مصرف شده
+
+اگر این مقدار زیاد شود یعنی مصرف‌کننده‌ها از تولیدکننده‌ها عقب افتاده‌اند.
+
+---
+
+### ابزار JMX Exporter
+
+در سامانه کافکا بسیاری از متریک‌های داخلی از طریق فناوری JMX در دسترس هستند. ابزار JMX Exporter این متریک‌ها را به فرمت قابل خواندن برای پرومتئوس تبدیل می‌کند.
+
+نمونه متریک‌هایی که از طریق JMX دریافت می‌شوند:
+
+- مصرف حافظه JVM
+- وضعیت Garbage Collection
+- تعداد Thread ها
+- مصرف CPU
+
+---
+
+## مرحله اول: نصب پیش‌نیازها
+
+ابتدا ابزارهای پایه را نصب می‌کنیم:
 
 ```bash
 sudo apt update
-sudo apt install -y wget curl tar
+sudo apt install wget curl tar -y
 ```
 
-سپس یک مسیر برای نگهداری ابزارهای مانیتورینگ ایجاد می‌کنیم:
+سپس مسیر اصلی پروژه را ایجاد می‌کنیم:
 
 ```bash
 sudo mkdir -p /opt/kafka
-cd /opt/kafka
 ```
-
-در این راهنما همه ابزارها داخل مسیر `/opt/kafka` نصب می‌شوند.
 
 ---
 
-# 2. نصب Prometheus
+## مرحله دوم: نصب سامانه Prometheus
 
-Prometheus یک سیستم **Monitoring و Time-Series Database** است که متریک‌ها را جمع‌آوری و ذخیره می‌کند.
-
-
-### دانلود Prometheus
+ابتدا نسخه مورد نظر پرومتئوس را دانلود می‌کنیم:
 
 ```bash
-cd /opt/kafka
-
-sudo wget https://github.com/prometheus/prometheus/releases/download/v2.52.0/prometheus-2.52.0.linux-amd64.tar.gz
+wget https://github.com/prometheus/prometheus/releases/download/v2.52.0/prometheus-2.52.0.linux-amd64.tar.gz
 ```
 
-### استخراج فایل
+فایل دانلود شده را استخراج می‌کنیم:
 
 ```bash
-sudo tar -xzf prometheus-2.52.0.linux-amd64.tar.gz
+tar -xvf prometheus-2.52.0.linux-amd64.tar.gz
 ```
 
-برای راحتی نام پوشه را تغییر می‌دهیم:
+پوشه را به مسیر مورد نظر منتقل می‌کنیم:
 
 ```bash
-sudo mv prometheus-2.52.0.linux-amd64 prometheus
+sudo mv prometheus-2.52.0.linux-amd64 /opt/kafka/prometheus
 ```
 
-### ساخت پوشه دیتابیس
-
-Prometheus متریک‌ها را در یک پایگاه داده داخلی ذخیره می‌کند.
+سپس پوشه داده را می‌سازیم:
 
 ```bash
 sudo mkdir /opt/kafka/prometheus/data
 ```
 
-### تنظیم permission ها (اختیاری)
-
-در بعضی سیستم‌ها ممکن است به دلیل permission خطا دریافت کنید. در این صورت می‌توانید دسترسی‌ها را تغییر دهید:
-
-```bash
-sudo chown -R $USER:$USER /opt/kafka/prometheus
-sudo chmod -R 775 /opt/kafka/prometheus
-```
-
-این مرحله **اختیاری** است و فقط در صورت بروز مشکل لازم می‌شود.
-
 ---
 
-# 3. تنظیم Prometheus
+## مرحله سوم: تنظیم فایل پیکربندی پرومتئوس
 
-Prometheus از فایل **prometheus.yml** برای مشخص کردن سرویس‌هایی که باید مانیتور شوند استفاده می‌کند.
+فایل تنظیمات در مسیر زیر قرار دارد:
 
-
-فایل را ویرایش کنید:
-
-```bash
-nano /opt/kafka/prometheus/prometheus.yml
+```
+/opt/kafka/prometheus/prometheus.yml
 ```
 
-محتوای نمونه:
+نمونه تنظیمات:
 
 ```yaml
 global:
   scrape_interval: 15s
 
 scrape_configs:
-
-  - job_name: prometheus
+  - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
 
-  - job_name: kafka_exporter
+  - job_name: 'kafka_exporter'
     static_configs:
       - targets: ['localhost:9308']
 
-  - job_name: kafka_jmx
+  - job_name: 'kafka_jmx'
     static_configs:
       - targets: ['localhost:7071']
 ```
 
-### توضیح تنظیمات
-
-**scrape_interval**
-
-مشخص می‌کند Prometheus هر چند ثانیه متریک‌ها را جمع‌آوری کند.
-
-**job_name**
-
-نام سرویس مانیتور شده.
-
-**targets**
-
-آدرس endpoint که متریک‌ها از آن خوانده می‌شوند.
-
 ---
 
-# 4. اجرای Prometheus
+## مرحله چهارم: اجرای سامانه Prometheus
+
+برای اجرای پرومتئوس از دستور زیر استفاده می‌کنیم:
 
 ```bash
-cd /opt/kafka/prometheus
-
-./prometheus --config.file=prometheus.yml --storage.tsdb.path=data
+/opt/kafka/prometheus/prometheus \
+  --config.file=/opt/kafka/prometheus/prometheus.yml \
+  --storage.tsdb.path=/opt/kafka/prometheus/data
 ```
 
-بعد از اجرا، رابط کاربری Prometheus در آدرس زیر در دسترس خواهد بود:
+پس از اجرا رابط کاربری از طریق آدرس زیر در دسترس خواهد بود:
 
 ```
 http://SERVER_IP:9090
 ```
 
-برای مشاهده سرویس‌های مانیتور شده:
+برای بررسی وضعیت تارگت‌ها:
 
 ```
 http://SERVER_IP:9090/targets
 ```
 
-اگر همه چیز درست باشد وضعیت سرویس‌ها باید **UP** باشد.
-
 ---
 
-# 5. نصب Kafka Exporter
+## مرحله پنجم: نصب ابزار Kafka Exporter
 
-Kafka Exporter متریک‌های Kafka را در قالبی که Prometheus بتواند بخواند ارائه می‌دهد.
-
-متریک‌هایی که Kafka Exporter ارائه می‌دهد شامل موارد زیر هستند:
-
-- تعداد broker ها  
-- تعداد topic ها  
-- تعداد partition ها  
-- leader partition ها  
-- consumer lag  
-- offsets  
-
-### دانلود Kafka Exporter
+ابتدا نسخه مناسب را دانلود می‌کنیم:
 
 ```bash
-cd /opt/kafka
-
-sudo wget https://github.com/danielqsj/kafka_exporter/releases/download/v1.7.0/kafka_exporter-1.7.0.linux-amd64.tar.gz
+wget https://github.com/danielqsj/kafka_exporter/releases/download/v1.7.0/kafka_exporter-1.7.0.linux-amd64.tar.gz
 ```
 
-### استخراج فایل
+سپس آن را استخراج می‌کنیم:
 
 ```bash
-sudo tar -xzf kafka_exporter-1.7.0.linux-amd64.tar.gz
+tar -xvf kafka_exporter-1.7.0.linux-amd64.tar.gz
 ```
 
-تغییر نام پوشه:
+پوشه را به مسیر پروژه منتقل می‌کنیم:
 
 ```bash
-sudo mv kafka_exporter-1.7.0.linux-amd64 kafka_exporter
+sudo mv kafka_exporter-1.7.0.linux-amd64 /opt/kafka/kafka_exporter
 ```
 
 ---
 
-# 6. اجرای Kafka Exporter
+## مرحله ششم: اجرای ابزار Kafka Exporter
+
+نمونه اجرای exporter:
 
 ```bash
-cd /opt/kafka/kafka_exporter
+/opt/kafka/kafka_exporter/kafka_exporter \
+  --kafka.server=localhost:9392 \
+  --kafka.server=localhost:9492 \
+  --kafka.server=localhost:9592
 ```
 
-اجرای exporter و اتصال به broker ها:
-
-```bash
-./kafka_exporter \
---kafka.server=localhost:9392 \
---kafka.server=localhost:9492 \
---kafka.server=localhost:9592
-```
-
-Kafka Exporter متریک‌ها را روی پورت زیر منتشر می‌کند:
+پس از اجرا متریک‌ها از طریق آدرس زیر قابل مشاهده هستند:
 
 ```
 http://localhost:9308/metrics
@@ -247,174 +218,57 @@ http://localhost:9308/metrics
 
 ---
 
-# 7. تست Kafka Exporter
+## مرحله هفتم: نصب ابزار JMX Exporter
+
+ابتدا مسیر مربوط به JMX را ایجاد می‌کنیم:
 
 ```bash
-curl localhost:9308/metrics
+sudo mkdir -p /opt/kafka/kafka-jmx
 ```
 
-نمونه متریک‌ها:
+سپس فایل Java Agent را دانلود می‌کنیم:
 
-```
-kafka_brokers
-kafka_topic_partitions
-kafka_topic_partition_leader
+```bash
+wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar
 ```
 
 ---
 
-# 8. نصب JMX Exporter
+## مرحله هشتم: اتصال JMX Exporter به بروکر کافکا
 
-Kafka با **Java** نوشته شده است و بسیاری از متریک‌های داخلی آن از طریق **JMX** قابل دریافت هستند.
-
-JMX Exporter این متریک‌ها را به فرمت Prometheus تبدیل می‌کند.
-
-### ساخت پوشه
+برای فعال کردن JMX Exporter باید متغیر زیر به تنظیمات اجرای بروکر اضافه شود:
 
 ```bash
-cd /opt/kafka
-
-sudo mkdir kafka-jmx
-cd kafka-jmx
+export KAFKA_OPTS="-javaagent:/opt/kafka/kafka-jmx/jmx_prometheus_javaagent-0.20.0.jar=7071:/opt/kafka/kafka-jmx/kafka_jmx.yml"
 ```
 
-### دانلود JMX Exporter
+پس از راه‌اندازی مجدد بروکر متریک‌ها در آدرس زیر در دسترس خواهند بود:
 
-```bash
-sudo wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar
 ```
-
-تغییر نام:
-
-```bash
-sudo mv jmx_prometheus_javaagent-0.20.0.jar jmx_exporter.jar
+http://localhost:7071/metrics
 ```
 
 ---
 
-# 9. ساخت فایل تنظیمات JMX
+## مرحله نهم: بررسی متریک‌ها در پرومتئوس
 
-```bash
-nano /opt/kafka/kafka-jmx/kafka_jmx.yml
-```
+در رابط کاربری پرومتئوس می‌توان کوئری‌های زیر را اجرا کرد:
 
-```yaml
-lowercaseOutputName: true
-lowercaseOutputLabelNames: true
+- kafka_brokers
+- kafka_topic_partitions
+- jvm_memory_bytes_used
 
-rules:
-  - pattern: ".*"
-```
+این متریک‌ها وضعیت کلاستر کافکا و JVM را نشان می‌دهند.
 
 ---
 
-# 10. اتصال JMX Exporter به Kafka
+## مراحل بعدی پیشنهادی
 
-## حالت اول — اجرای Kafka با script
+برای تکمیل سیستم مانیتورینگ می‌توان اقدامات زیر را انجام داد:
 
-```bash
-export KAFKA_OPTS="-javaagent:/opt/kafka/kafka-jmx/jmx_exporter.jar=7071:/opt/kafka/kafka-jmx/kafka_jmx.yml"
-```
+- ساخت سرویس systemd برای اجرای خودکار ابزارها
+- ساخت داشبورد مانیتورینگ در سامانه گرافانا
+- تعریف هشدار برای افزایش Consumer Lag
+- مانیتورینگ مصرف CPU و حافظه بروکرها
 
-سپس Kafka را restart کنید.
-
----
-
-## حالت دوم — اجرای Kafka با systemd
-
-```bash
-sudo nano /etc/systemd/system/kafka.service
-```
-
-در بخش `[Service]` اضافه کنید:
-
-```
-Environment="KAFKA_OPTS=-javaagent:/opt/kafka/kafka-jmx/jmx_exporter.jar=7071:/opt/kafka/kafka-jmx/kafka_jmx.yml"
-```
-
-سپس:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl restart kafka
-```
-
----
-
-# 11. تست JMX Exporter
-
-```bash
-curl localhost:7071/metrics
-```
-
-نمونه متریک‌ها:
-
-```
-jvm_memory_bytes_used
-jvm_gc_collection_seconds
-```
-
----
-
-# 12. تست در Prometheus
-
-Prometheus UI:
-
-```
-http://SERVER_IP:9090
-```
-
-نمونه Query:
-
-```
-kafka_brokers
-```
-
-```
-jvm_memory_bytes_used
-```
-
----
-
-# آدرس‌های مهم
-
-Prometheus
-
-```
-http://SERVER_IP:9090
-```
-
-Kafka Exporter
-
-```
-http://SERVER_IP:9308/metrics
-```
-
-JMX Exporter
-
-```
-http://SERVER_IP:7071/metrics
-```
-
----
-
-# مراحل بعدی پیشنهادی
-
-برای محیط production بهتر است:
-
-- Prometheus و Kafka Exporter را به صورت **systemd service** اجرا کنید
-- **Grafana** نصب کنید
-- **Alerting در Prometheus** فعال کنید
-- **Consumer Lag monitoring** تنظیم کنید
----
-
-# جمع‌بندی
-
-در این راهنما یک استک مانیتورینگ برای Kafka راه‌اندازی شد که شامل موارد زیر است:
-- Kafka Exporter → متریک‌های Kafka
-- JMX Exporter → متریک‌های JVM
-- Prometheus → جمع‌آوری و ذخیره متریک‌ها
-- Grafana → نمایش داشبوردها
-
-این معماری یکی از رایج‌ترین روش‌های مانیتورینگ Kafka در محیط‌های production است.
 </div>
