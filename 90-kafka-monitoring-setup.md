@@ -127,8 +127,8 @@ sudo mkdir /opt/kafka/prometheus/data
 
 فایل تنظیمات در مسیر زیر قرار دارد:
 
-```
-/opt/kafka/prometheus/prometheus.yml
+```bash
+vim /opt/kafka/prometheus/prometheus.yml
 ```
 
 نمونه تنظیمات:
@@ -165,13 +165,13 @@ scrape_configs:
 
 پس از اجرا رابط کاربری از طریق آدرس زیر در دسترس خواهد بود:
 
-```
+```bash
 http://SERVER_IP:9090
 ```
 
 برای بررسی وضعیت تارگت‌ها:
 
-```
+```bash
 http://SERVER_IP:9090/targets
 ```
 
@@ -212,7 +212,7 @@ sudo mv kafka_exporter-1.7.0.linux-amd64 /opt/kafka/kafka_exporter
 
 پس از اجرا متریک‌ها از طریق آدرس زیر قابل مشاهده هستند:
 
-```
+```bash
 http://localhost:9308/metrics
 ```
 
@@ -244,7 +244,7 @@ export KAFKA_OPTS="-javaagent:/opt/kafka/kafka-jmx/jmx_prometheus_javaagent-0.20
 
 پس از راه‌اندازی مجدد بروکر متریک‌ها در آدرس زیر در دسترس خواهند بود:
 
-```
+```bash
 http://localhost:7071/metrics
 ```
 
