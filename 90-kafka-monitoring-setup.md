@@ -1,5 +1,7 @@
 # راه‌اندازی مانیتورینگ Kafka با Prometheus ،Kafka Exporter و JMX Exporter
 
+
+<div dir="rtl">
 در این راهنما نحوه راه‌اندازی یک سیستم مانیتورینگ برای **Apache Kafka** با استفاده از ابزارهای زیر توضیح داده می‌شود:
 
 - **Prometheus** برای جمع‌آوری و ذخیره متریک‌ها  
@@ -19,6 +21,7 @@
 - مصرف CPU و Memory
 
 این اطلاعات برای **تشخیص سریع مشکلات سیستم** و **پایش سلامت کلاستر Kafka** بسیار مهم هستند.
+</div>
 
 ---
 
@@ -43,9 +46,9 @@ Prometheus
 Grafana
    (نمایش داشبوردها)
 ```
-
+<div dir="rtl">
 Prometheus به صورت **Pull-Based** کار می‌کند. یعنی خودش به صورت دوره‌ای به سرویس‌ها متصل می‌شود و متریک‌ها را دریافت می‌کند.
-
+</div>
 ---
 
 # 1. نصب پیش‌نیازها
@@ -69,8 +72,9 @@ cd /opt/kafka
 ---
 
 # 2. نصب Prometheus
-
+<div dir="rtl">
 Prometheus یک سیستم **Monitoring و Time-Series Database** است که متریک‌ها را جمع‌آوری و ذخیره می‌کند.
+</div>
 
 ### دانلود Prometheus
 
@@ -114,8 +118,9 @@ sudo chmod -R 775 /opt/kafka/prometheus
 ---
 
 # 3. تنظیم Prometheus
-
+<div dir="rtl">
 Prometheus از فایل **prometheus.yml** برای مشخص کردن سرویس‌هایی که باید مانیتور شوند استفاده می‌کند.
+</div>
 
 فایل را ویرایش کنید:
 
@@ -185,9 +190,9 @@ http://SERVER_IP:9090/targets
 ---
 
 # 5. نصب Kafka Exporter
-
+<div dir="rtl">
 Kafka Exporter متریک‌های Kafka را در قالبی که Prometheus بتواند بخواند ارائه می‌دهد.
-
+</div>
 متریک‌هایی که Kafka Exporter ارائه می‌دهد شامل موارد زیر هستند:
 
 - تعداد broker ها  
@@ -259,11 +264,11 @@ kafka_topic_partition_leader
 ---
 
 # 8. نصب JMX Exporter
-
+<div dir="rtl">
 Kafka با **Java** نوشته شده است و بسیاری از متریک‌های داخلی آن از طریق **JMX** قابل دریافت هستند.
 
 JMX Exporter این متریک‌ها را به فرمت Prometheus تبدیل می‌کند.
-
+</div>
 ### ساخت پوشه
 
 ```bash
@@ -396,21 +401,22 @@ http://SERVER_IP:7071/metrics
 # مراحل بعدی پیشنهادی
 
 برای محیط production بهتر است:
+<div dir="rtl">
 
 - Prometheus و Kafka Exporter را به صورت **systemd service** اجرا کنید
 - **Grafana** نصب کنید
 - **Alerting در Prometheus** فعال کنید
 - **Consumer Lag monitoring** تنظیم کنید
-
+</div>
 ---
 
 # جمع‌بندی
 
 در این راهنما یک استک مانیتورینگ برای Kafka راه‌اندازی شد که شامل موارد زیر است:
-
+<div dir="rtl">
 - Kafka Exporter → متریک‌های Kafka
 - JMX Exporter → متریک‌های JVM
 - Prometheus → جمع‌آوری و ذخیره متریک‌ها
 - Grafana → نمایش داشبوردها
-
+</div>
 این معماری یکی از رایج‌ترین روش‌های مانیتورینگ Kafka در محیط‌های production است.
