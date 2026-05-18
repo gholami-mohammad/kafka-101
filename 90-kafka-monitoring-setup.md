@@ -78,6 +78,9 @@ kafka cluster → Kafka Exporter و JMX Exporter → Prometheus → Grafana
 
 ---
 
+
+## Linux (Ubuntu/Debian)
+
 ## مرحله اول: نصب پیش‌نیازها
 
 ابتدا ابزارهای پایه را نصب می‌کنیم:
@@ -95,7 +98,12 @@ sudo mkdir -p /opt/kafka
 
 ---
 
-## مرحله دوم: نصب Prometheus
+## مرحله دوم: نصب kafka
+
+برای نصب کافکا به [اینجا](02-installation.md) مراجعه کنید
+---
+
+## مرحله سوم: نصب Prometheus
 
 ابتدا نسخه مورد نظر پرومتئوس را دانلود می‌کنیم:
 
@@ -123,7 +131,7 @@ sudo mkdir /opt/kafka/prometheus/data
 
 ---
 
-## مرحله سوم: تنظیم فایل پیکربندی Prometheus
+## مرحله چهارم: تنظیم فایل پیکربندی Prometheus
 
 فایل تنظیمات در مسیر زیر قرار دارد:
 
@@ -153,12 +161,12 @@ scrape_configs:
 
 ---
 
-## مرحله چهارم: اجرای Prometheus
+## مرحله پنجم: اجرای Prometheus
 
 برای اجرای پرومتئوس از دستور زیر استفاده می‌کنیم:
 
 ```bash
-/opt/kafka/prometheus/prometheus \
+sudo /opt/kafka/prometheus/prometheus \
   --config.file=/opt/kafka/prometheus/prometheus.yml \
   --storage.tsdb.path=/opt/kafka/prometheus/data
 ```
@@ -177,7 +185,7 @@ http://SERVER_IP:9090/targets
 
 ---
 
-## مرحله پنجم: نصب Kafka Exporter
+## مرحله ششم: نصب Kafka Exporter
 
 ابتدا نسخه مناسب را دانلود می‌کنیم:
 
@@ -199,7 +207,7 @@ sudo mv kafka_exporter-1.7.0.linux-amd64 /opt/kafka/kafka_exporter
 
 ---
 
-## مرحله ششم: اجرای Kafka Exporter
+## مرحله هفتم: اجرای Kafka Exporter
 
 نمونه اجرای exporter:
 
@@ -218,12 +226,12 @@ http://localhost:9308/metrics
 
 ---
 
-## مرحله هفتم: نصب JMX Exporter
+## مرحله هشتم: نصب JMX Exporter
 
 ابتدا مسیر مربوط به JMX را ایجاد می‌کنیم:
 
 ```bash
-sudo mkdir -p /opt/kafka/kafka-jmx
+sudo mkdir -p /opt/kafka/kafka_jmx
 ```
 
 سپس فایل Java Agent را دانلود می‌کنیم:
@@ -232,15 +240,66 @@ sudo mkdir -p /opt/kafka/kafka-jmx
 wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar
 ```
 
+فایل رو به مسیر زیر انتقال می دهیم
+```bash
+sudo mv jmx_prometheus_javaagent-0.20.0.jar /opt/kafka/kafka_jmx
+```
+
+حالا یک فایل config می سازیم
+
+```bash
+vim /opt/kafka_jmx.yml
+```
+
+داخلش
+```bash
+startDelaySeconds: 0
+ssl: false
+
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+
+rules:
+  - pattern: ".*"
+
+```
+
 ---
 
-## مرحله هشتم: اتصال JMX Exporter به بروکر کافکا
+## مرحله نهم: اتصال JMX Exporter به بروکر کافکا
 
 برای فعال کردن JMX Exporter باید متغیر زیر به تنظیمات اجرای بروکر اضافه شود:
+اگر systemd داری:
 
+فایل سرویس را پیدا کن:
+```bash
+sudo systemctl status kafka
+```
+
+داخل سرویس اضافه کن:
+```bash
+Environment="KAFKA_OPTS=-javaagent:/opt/kafka_jmx/jmx_prometheus_javaagent-0.20.0.jar=7071:/opt/kafka_jmx/kafka_jmx.yml"
+```
+
+
+یا اگر با script اجرا می‌کنی:
+در فایل kafka-server-start.sh قبل اجرا:
 ```bash
 export KAFKA_OPTS="-javaagent:/opt/kafka/kafka-jmx/jmx_prometheus_javaagent-0.20.0.jar=7071:/opt/kafka/kafka-jmx/kafka_jmx.yml"
 ```
+
+خوب حالا systemd رو reload (اگر با systemd کافکا را اجرا می کنی)کن 
+
+```bash
+sudo systemctl daemon-reload
+```
+
+حالا Kafka را restart کن
+```bash
+systemctl restart kafka
+```
+یا اگر دستی اجرا می‌کنی stop/start.
+
 
 پس از راه‌اندازی مجدد بروکر متریک‌ها در آدرس زیر در دسترس خواهند بود:
 
@@ -250,7 +309,7 @@ http://localhost:7071/metrics
 
 ---
 
-## مرحله نهم: بررسی متریک‌ها در پرومتئوس
+## مرحله دهم: بررسی متریک‌ها در پرومتئوس
 
 در رابط کاربری پرومتئوس می‌توان کوئری‌های زیر را اجرا کرد:
 
