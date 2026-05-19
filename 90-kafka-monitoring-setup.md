@@ -426,11 +426,11 @@ services:
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka1:9093,2@kafka2:9093,3@kafka3:9093
       - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
-      - KAFKA_OPTS=-javaagent:/etc/kafka-monitoring/jmx-exporter/jmx_prometheus_javaagent.jar=9101:/etc/kafka-monitoring/jmx-exporter/jmx-exporter-config.yml
+      - KAFKA_OPTS=-javaagent:/etc/kafka-project/jmx-exporter/jmx_prometheus_javaagent.jar=9101:/etc/kafka-project/jmx-exporter/jmx-exporter-config.yml
       - ALLOW_PLAINTEXT_LISTENER=yes
     volumes:
       - kafka1_data:/bitnami/kafka
-      - ./jmx-exporter:/etc/kafka-monitoring/jmx-exporter
+      - ./jmx-exporter:/etc/kafka-project/jmx-exporter
     networks:
       - kafka-net
 
@@ -453,11 +453,11 @@ services:
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka1:9093,2@kafka2:9093,3@kafka3:9093
       - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
-      - KAFKA_OPTS=-javaagent:/etc/kafka-monitoring/jmx-exporter/jmx_prometheus_javaagent.jar=9101:/etc/kafka-monitoring/jmx-exporter/jmx-exporter-config.yml
+      - KAFKA_OPTS=-javaagent:/etc/kafka-project/jmx-exporter/jmx_prometheus_javaagent.jar=9101:/etc/kafka-project/jmx-exporter/jmx-exporter-config.yml
       - ALLOW_PLAINTEXT_LISTENER=yes
     volumes:
       - kafka2_data:/bitnami/kafka
-      - ./jmx-exporter:/etc/kafka-monitoring/jmx-exporter
+      - ./jmx-exporter:/etc/kafka-project/jmx-exporter
     networks:
       - kafka-net
 
@@ -481,11 +481,11 @@ services:
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka1:9093,2@kafka2:9093,3@kafka3:9093
       - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
-      - KAFKA_OPTS=-javaagent:/etc/kafka-monitoring/jmx-exporter/jmx_prometheus_javaagent.jar=9101:/etc/kafka-monitoring/jmx-exporter/jmx-exporter-config.yml
+      - KAFKA_OPTS=-javaagent:/etc/kafka-project/jmx-exporter/jmx_prometheus_javaagent.jar=9101:/etc/kafka-project/jmx-exporter/jmx-exporter-config.yml
       - ALLOW_PLAINTEXT_LISTENER=yes
     volumes:
       - kafka3_data:/bitnami/kafka
-      - ./jmx-exporter:/etc/kafka-monitoring/jmx-exporter
+      - ./jmx-exporter:/etc/kafka-project/jmx-exporter
     networks:
       - kafka-net
 
