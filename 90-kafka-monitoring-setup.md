@@ -319,4 +319,241 @@ http://localhost:7071/metrics
 
 این متریک‌ها وضعیت کلاستر کافکا و JVM را نشان می‌دهند.
 
+
+
+
+
+---
+
+
+## With Docker
+
+
+## 1. پیش نیاز ها
+
+سپس فایل Java Agent را دانلود می‌کنیم:
+
+```bash
+wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar
+```
+
+## 2. ساختار پوشه‌ها
+
+داخل یک پوشه (مثلاً kafka-project) فایل‌ها را به شکل زیر بچینید:
+
+```bash
+kafka-project/
+├── docker-compose.yml
+├── prometheus.yml
+└── jmx-exporter/
+    └── jmx-exporter-config.yml
+```
+
+
+فایل رو به مسیر زیر انتقال می دهیم
+```bash
+sudo mv jmx_prometheus_javaagent-0.20.0.jar /opt/kafka-project/jmx_prometheus_javaagent.jar
+```
+
+در نهایت:
+```bash
+kafka-project/
+├── docker-compose.yml
+├── prometheus.yml
+└── jmx-exporter/
+    ├── jmx_prometheus_javaagent.jar
+    └── jmx-exporter-config.yml
+```
+
+
+## 3. تنظیم فایل‌های پیکربندی
+
+```bash
+jmx-exporter-config.yml
+```
+برای تست، فقط یک قانون ساده بنویسید تا همه متریک‌ها جمع‌آوری شوند:
+
+```bash
+lowercaseOutputName: true
+rules:
+  - pattern: ".*"
+```
+
+سپس فایل prometheus:
+```bash
+prometheus.yml
+```
+
+Prometheus را طوری تنظیم کنید که هم داده‌های JMX و هم Kafka Exporter را بخواند:
+```bash
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: 'kafka-jmx'
+    static_configs:
+      - targets: ['kafka1:9101', 'kafka2:9101', 'kafka3:9101']
+
+  - job_name: 'kafka-exporter'
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+```
+
+## 4. فایل نهایی docker
+
+در نهایت نوبت به فایل docker می رسد
+```bash
+docker-compose.yml
+```
+
+برای تست، فقط یک قانون ساده بنویسید تا همه متریک‌ها جمع‌آوری شوند:
+```bash
+services:
+  kafka1:
+    image: bitnami/kafka:latest
+    container_name: kafka1
+    hostname: kafka1
+    ports:
+      - "9192:9092"
+      - "9101:9101"
+    environment:
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka1:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka1:9093,2@kafka2:9093,3@kafka3:9093
+      - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
+      - KAFKA_OPTS=-javaagent:/etc/kafka-monitoring/jmx-exporter/jmx_prometheus_javaagent.jar=9101:/etc/kafka-monitoring/jmx-exporter/jmx-exporter-config.yml
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    volumes:
+      - kafka1_data:/bitnami/kafka
+      - ./jmx-exporter:/etc/kafka-monitoring/jmx-exporter
+    networks:
+      - kafka-net
+
+  kafka2:
+    image: bitnami/kafka:latest
+    container_name: kafka2
+    hostname: kafka2
+    depends_on:
+      - kafka1
+    ports:
+      - "9292:9092"
+      - "9102:9101"
+    environment:
+      - KAFKA_CFG_NODE_ID=2
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka2:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka1:9093,2@kafka2:9093,3@kafka3:9093
+      - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
+      - KAFKA_OPTS=-javaagent:/etc/kafka-monitoring/jmx-exporter/jmx_prometheus_javaagent.jar=9101:/etc/kafka-monitoring/jmx-exporter/jmx-exporter-config.yml
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    volumes:
+      - kafka2_data:/bitnami/kafka
+      - ./jmx-exporter:/etc/kafka-monitoring/jmx-exporter
+    networks:
+      - kafka-net
+
+  kafka3:
+    image: bitnami/kafka:latest
+    container_name: kafka3
+    hostname: kafka3
+    depends_on:
+      - kafka1
+      - kafka2
+    ports:
+      - "9392:9092"
+      - "9103:9101"
+    environment:
+      - KAFKA_CFG_NODE_ID=3
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka3:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka1:9093,2@kafka2:9093,3@kafka3:9093
+      - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
+      - KAFKA_OPTS=-javaagent:/etc/kafka-monitoring/jmx-exporter/jmx_prometheus_javaagent.jar=9101:/etc/kafka-monitoring/jmx-exporter/jmx-exporter-config.yml
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    volumes:
+      - kafka3_data:/bitnami/kafka
+      - ./jmx-exporter:/etc/kafka-monitoring/jmx-exporter
+    networks:
+      - kafka-net
+
+  kafka-exporter:
+    image: danielqsj/kafka-exporter
+    container_name: kafka-exporter
+    command:
+      - "--kafka.server=kafka1:9092"
+      - "--kafka.server=kafka2:9092"
+      - "--kafka.server=kafka3:9092"
+    ports:
+      - "9308:9308"
+    networks:
+      - kafka-net
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - kafka-net
+
+volumes:
+  kafka1_data:
+  kafka2_data:
+  kafka3_data:
+
+networks:
+  kafka-net:
+    driver: bridge
+
+```
+
+
+## 5. اجرای پروژه
+
+```bash
+docker compose up -d
+```
+
+و برای مشاهده وضعیت سلامت هر سرویس:
+```bash
+docker compose ps
+```
+
+
+## 6. دسترسی‌ها پس از اجرا
+
+سرویس های Kafka1، Kafka2، Kafka3
+```bash
+پورت‌های 9192، 9292، 9392
+```
+
+سرویس JMX Exporter
+```bash
+http://localhost:9101, 9102, 9103
+```
+
+سرویس Kafka Exporter
+```bash
+http://localhost:9308/metric
+```
+
+سرویس Prometheus UI
+```bash
+http://localhost:9090
+```
 </div>
