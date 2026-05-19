@@ -25,3 +25,30 @@
 - [Transaction In Action](./70-transaction-in-action.md)
 - [Kafka Logs](./71-logs-and-kafka.md)
 - [Outbox Pattern And Debezium](./72-outbox-pattern.md)
+- [Data Architecture Basics](./73-data-architecture-basics.md)
+
+---
+
+## TODO:
+
+Cooperative consumption
+
+Message Level Acknowledgment
+
+Shared partition
+
+shared consumer
+
+explicit Acknowledgment
+
+Queue for kafka
+
+---
+
+what is stream processing in kafka?
+
+---
+
+Sequential IO
+
+Zero Copy
