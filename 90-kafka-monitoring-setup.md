@@ -101,7 +101,6 @@ sudo mkdir -p /opt/kafka
 ## مرحله دوم: نصب kafka
 
 برای نصب کافکا به [اینجا](02-installation.md) مراجعه کنید
----
 
 ## مرحله سوم: نصب Prometheus
 
@@ -330,8 +329,8 @@ http://localhost:7071/metrics
 
 
 ## 1. پیش نیاز ها
-
-سپس فایل Java Agent را دانلود می‌کنیم:
+ 
+فایل Java Agent را دانلود می‌کنیم:
 
 ```bash
 wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar
@@ -374,9 +373,15 @@ jmx-exporter-config.yml
 برای تست، فقط یک قانون ساده بنویسید تا همه متریک‌ها جمع‌آوری شوند:
 
 ```bash
+startDelaySeconds: 0
+ssl: false
+
 lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+
 rules:
   - pattern: ".*"
+
 ```
 
 سپس فایل prometheus:
@@ -536,11 +541,6 @@ docker compose ps
 
 
 ## 6. دسترسی‌ها پس از اجرا
-
-سرویس های Kafka1، Kafka2، Kafka3
-```bash
-پورت‌های 9192، 9292، 9392
-```
 
 سرویس JMX Exporter
 ```bash
