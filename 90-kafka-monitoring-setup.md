@@ -277,7 +277,7 @@ sudo systemctl status kafka
 
 داخل سرویس اضافه کن:
 ```bash
-Environment="KAFKA_OPTS=-javaagent:/opt/kafka_jmx/jmx_prometheus_javaagent-0.20.0.jar=7071:/opt/kafka_jmx/kafka_jmx.yml"
+Environment="KAFKA_OPTS=-javaagent:/opt/kafka/kafka_jmx/jmx_prometheus_javaagent-0.20.0.jar=7071:/opt/kafka/kafka_jmx/kafka_jmx.yml"
 ```
 
 
@@ -341,7 +341,7 @@ wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0
 داخل یک پوشه (مثلاً kafka-project) فایل‌ها را به شکل زیر بچینید:
 
 ```bash
-kafka-project/
+/opt/kafka-project/
 ├── docker-compose.yml
 ├── prometheus.yml
 └── jmx-exporter/
@@ -356,7 +356,7 @@ sudo mv jmx_prometheus_javaagent-0.20.0.jar /opt/kafka-project/jmx_prometheus_ja
 
 در نهایت:
 ```bash
-kafka-project/
+/opt/kafka-project/
 ├── docker-compose.yml
 ├── prometheus.yml
 └── jmx-exporter/
@@ -431,11 +431,11 @@ services:
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka1:9093,2@kafka2:9093,3@kafka3:9093
       - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
-      - KAFKA_OPTS=-javaagent:/etc/kafka-project/jmx-exporter/jmx_prometheus_javaagent.jar=9101:/etc/kafka-project/jmx-exporter/jmx-exporter-config.yml
+      - KAFKA_OPTS=-javaagent:/opt/kafka-project/jmx-exporter/jmx_prometheus_javaagent.jar=9101:/opt/kafka-project/jmx-exporter/jmx-exporter-config.yml
       - ALLOW_PLAINTEXT_LISTENER=yes
     volumes:
       - kafka1_data:/bitnami/kafka
-      - ./jmx-exporter:/etc/kafka-project/jmx-exporter
+      - ./jmx-exporter:/opt/kafka-project/jmx-exporter
     networks:
       - kafka-net
 
@@ -458,11 +458,11 @@ services:
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka1:9093,2@kafka2:9093,3@kafka3:9093
       - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
-      - KAFKA_OPTS=-javaagent:/etc/kafka-project/jmx-exporter/jmx_prometheus_javaagent.jar=9101:/etc/kafka-project/jmx-exporter/jmx-exporter-config.yml
+      - KAFKA_OPTS=-javaagent:/opt/kafka-project/jmx-exporter/jmx_prometheus_javaagent.jar=9101:/opt/kafka-project/jmx-exporter/jmx-exporter-config.yml
       - ALLOW_PLAINTEXT_LISTENER=yes
     volumes:
       - kafka2_data:/bitnami/kafka
-      - ./jmx-exporter:/etc/kafka-project/jmx-exporter
+      - ./jmx-exporter:/opt/kafka-project/jmx-exporter
     networks:
       - kafka-net
 
@@ -486,11 +486,11 @@ services:
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka1:9093,2@kafka2:9093,3@kafka3:9093
       - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
-      - KAFKA_OPTS=-javaagent:/etc/kafka-project/jmx-exporter/jmx_prometheus_javaagent.jar=9101:/etc/kafka-project/jmx-exporter/jmx-exporter-config.yml
+      - KAFKA_OPTS=-javaagent:/opt/kafka-project/jmx-exporter/jmx_prometheus_javaagent.jar=9101:/opt/kafka-project/jmx-exporter/jmx-exporter-config.yml
       - ALLOW_PLAINTEXT_LISTENER=yes
     volumes:
       - kafka3_data:/bitnami/kafka
-      - ./jmx-exporter:/etc/kafka-project/jmx-exporter
+      - ./jmx-exporter:/opt/kafka-project/jmx-exporter
     networks:
       - kafka-net
 
@@ -510,7 +510,7 @@ services:
     image: prom/prometheus
     container_name: prometheus
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus.yml:/opt/kafka-project/prometheus.yml
     ports:
       - "9090:9090"
     networks:
