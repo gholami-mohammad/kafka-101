@@ -247,7 +247,7 @@ sudo mv jmx_prometheus_javaagent-0.20.0.jar /opt/kafka/kafka_jmx
 حالا یک فایل config می سازیم
 
 ```bash
-vim /opt/kafka_jmx.yml
+vim /opt/kafka/kafka_jmx/kafka_jmx.yml
 ```
 
 داخلش
