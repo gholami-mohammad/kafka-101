@@ -28,7 +28,8 @@
 - [Data Architecture Basics](./73-data-architecture-basics.md)
 - [Event Modeling](./74-event-modeling.md)
 - [Data Mesh](./75-data-mesh.md)
-- [Designing Event-Driven Microservice](./76-designing-event-and-event-streaming.md)
+- [Designing Event And Event Stream](./76-designing-event-and-event-streaming.md)
+- [Designing Event-Driven Microservice](./77-designing-event-driven-microservice.md)
 
 ---
 
