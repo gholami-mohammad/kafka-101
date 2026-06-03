@@ -26,6 +26,9 @@
 - [Kafka Logs](./71-logs-and-kafka.md)
 - [Outbox Pattern And Debezium](./72-outbox-pattern.md)
 - [Data Architecture Basics](./73-data-architecture-basics.md)
+- [Event Modeling](./74-event-modeling.md)
+- [Data Mesh](./75-data-mesh.md)
+- [Designing Event-Driven Microservice](./76-designing-event-and-event-streaming.md)
 
 ---
 
