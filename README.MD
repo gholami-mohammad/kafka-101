@@ -30,6 +30,7 @@
 - [Data Mesh](./75-data-mesh.md)
 - [Designing Event And Event Stream](./76-designing-event-and-event-streaming.md)
 - [Designing Event-Driven Microservice](./77-designing-event-driven-microservice.md)
+- [Event Sourcing and Event Storage with Apache Kafka](./78-event-sourcing-and-event-storage-with-apache-kafka.md)
 
 ---
 
